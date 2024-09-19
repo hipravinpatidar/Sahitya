@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:sahityadesign/view/gita_chapter.dart';
+import 'package:sahityadesign/view/gita_chapter/gita_chapter.dart';
 
-import '../ui_helpers/custom_colors.dart';
+import '../../ui_helpers/custom_colors.dart';
 
 class SahityaList extends StatefulWidget {
   const SahityaList({super.key});
@@ -38,7 +38,7 @@ class _SahityaListState extends State<SahityaList> {
 
                 switch(index){
 
-                     case 0: Navigator.push(context, MaterialPageRoute(builder: (context) => GitaChapter(fontSize: _fontSize,),));
+                     case 0: Navigator.push(context, MaterialPageRoute(builder: (context) => GeetaChapter(),));
 
                 //   case 1: Navigator.push(context, MaterialPageRoute(builder: (context) => Videomovies(),));
                 //

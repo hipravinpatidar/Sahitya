@@ -19,8 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.5.0-180.3.beta <4.0.0'
-
+  sdk: '>=3.2.1 <4.0.0'
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -37,6 +36,14 @@ dependencies:
   cupertino_icons: ^1.0.8
   dropdown_button2: ^2.3.9
   shared_preferences: ^2.0.20
+  provider: ^6.1.2
+  audio_service: ^0.18.15
+  http: ^1.2.2
+  html: ^0.15.0
+  share_plus: ^8.0.0
+  just_audio: ^0.9.37
+  sqflite: ^2.3.3+1
+  screenshot: ^2.5.0
 
 dev_dependencies:
   flutter_test:

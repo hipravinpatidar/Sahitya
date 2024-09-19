@@ -1,268 +1,280 @@
 import 'package:flutter/material.dart';
-import 'package:sahityadesign/model/bhagwat_model.dart';
+import 'package:provider/provider.dart';
+import 'package:sahityadesign/api_service/api_service.dart';
+import 'package:sahityadesign/controller/settings_controller.dart';
+import 'package:sahityadesign/model/chapters_model.dart';
 import 'package:sahityadesign/ui_helpers/custom_colors.dart';
-import 'package:sahityadesign/view/gita_screen.dart';
-import 'package:sahityadesign/view/sahitya_home.dart';
-import 'package:sahityadesign/view/saved_itemscreen.dart';
-import '../ui_helpers/theme_manager.dart';
+import 'package:sahityadesign/view/detail_gita_shlok/gita_screen.dart';
+import 'package:sahityadesign/view/sahitya_home/sahitya_home.dart';
+import '../../controller/audio_controller.dart';
+import '../../utils/music_bar.dart';
 
-class GitaChapter extends StatefulWidget {
-      GitaChapter({super.key, required this.fontSize});
-
-      double fontSize;
+class GeetaChapter extends StatefulWidget {
+    const GeetaChapter({super.key,});
 
   @override
-  State<GitaChapter> createState() => _GitaChapterState();
+  State<GeetaChapter> createState() => _GeetaChapterState();
 }
 
-class _GitaChapterState extends State<GitaChapter> {
+class _GeetaChapterState extends State<GeetaChapter> {
 
+  bool isLoading = false;
+  late AudioPlayerManager audioManager = AudioPlayerManager();
 
-  List<BhagwatModel> bhagwatitem =[
+  List<Chapters> chapterData = [];
 
-    BhagwatModel(id: "1",slok: "Slok 1 -18",titile: "Arjun Vishad Yog"),
-    BhagwatModel(id: "2",slok: "Slok 1 -72",titile: "Sankhya Yog"),
-    BhagwatModel(id: "3",slok: "Slok 1 -50",titile: "Karm Yog"),
-    BhagwatModel(id: "4",slok: "Slok 1 -30",titile: "Gyan Karm Sanyas Yog"),
-    BhagwatModel(id: "5",slok: "Slok 1 -12",titile: "Karm Sanyas Yog"),
-    BhagwatModel(id: "6",slok: "Slok 1 -45",titile: "Aatmsayam Yog"),
-    BhagwatModel(id: "7",slok: "Slok 1 -45",titile: "Gyan Vigyan Yog"),
-    BhagwatModel(id: "8",slok: "Slok 1 -45",titile: "Akshar Brahma Yog"),
-    BhagwatModel(id: "9",slok: "Slok 1 -45",titile: "Raj Vidhya Raj Guhya Yog"),
-    BhagwatModel(id: "10",slok: "Slok 1 -45",titile: "Vibhuti Yog"),
-    BhagwatModel(id: "11",slok: "Slok 1 -45",titile: "Vishwarup Darshan Yog"),
-    BhagwatModel(id: "12",slok: "Slok 1 -45",titile: "Aatmsayam Yog"),
-    BhagwatModel(id: "13",slok: "Slok 1 -45",titile: "Aatmsayam Yog"),
-    BhagwatModel(id: "14",slok: "Slok 1 -45",titile: "Aatmsayam Yog"),
-    BhagwatModel(id: "15",slok: "Slok 1 -45",titile: "Aatmsayam Yog"),
-    BhagwatModel(id: "16",slok: "Slok 1 -45",titile: "Aatmsayam Yog"),
-    BhagwatModel(id: "17",slok: "Slok 1 -45",titile: "Aatmsayam Yog"),
-    BhagwatModel(id: "18",slok: "Slok 1 -45",titile: "Aatmsayam Yog"),
-  ];
-  List<bool> _isBookmarked = [];
-  List<String> _savedItems = [];
-
-
-  void _showSaveOptionsDialog(int index) {
-    showDialog(
-      context: context,
-      builder: (context) {
-
-        return AlertDialog(
-          backgroundColor: CustomColors.clrwhite,
-          title: Text('Save As',style: TextStyle(color: CustomColors.clrblack),),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text('Save as Read',style: TextStyle(color: CustomColors.clrblack),),
-                onTap: () {
-                  _saveItem('Read: ${bhagwatitem[index].titile}');
-                  _saveBookmark(index);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                title: Text('Save as Recite',style: TextStyle(color: CustomColors.clrblack),),
-                onTap: () {
-                  _saveItem('Recite: ${bhagwatitem[index].titile}');
-                  _saveBookmark(index);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                title: Text('Save as Memories',style: TextStyle(color: CustomColors.clrblack),),
-                onTap: () {
-                  _saveItem('Memories:${bhagwatitem[index].titile}');
-                  _saveBookmark(index);
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _saveItem(String category) {
+  Future<void> getChapters() async {
     setState(() {
-      _savedItems.add(category);
+      isLoading = true;
     });
-  }
 
-  void _saveBookmark(int index) {
-    setState(() {
-      _isBookmarked[index] = true;
-    });
-  }
+    try {
+      final jsonResponse = await ApiService().getChapters('https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta');
 
-  void _removeBookmark(int index) {
-    setState(() {
-      _isBookmarked[index] = false;
-    });
-    _removeItemFromSavedList(index);
-  }
+      if (jsonResponse != null) {
+        final Map<String, dynamic> jsonMap = jsonResponse;
 
-  void _removeItemFromSavedList(int index) {
-    String? title = bhagwatitem[index].titile;
-    _savedItems.removeWhere((item) => item.contains(title ?? ''));
+
+        if (jsonMap.containsKey('status') &&
+            jsonMap.containsKey('data') &&
+            jsonMap['data'] != null) {
+
+          final chapterModel = ChaptersModel.fromJson(jsonMap);
+
+          print(chapterModel);
+
+          setState(() {
+            chapterData = chapterModel.data!;
+          });
+        } else {
+          print("Error: 'status' or 'data' key is missing or null in response.");
+        }
+      } else {
+        print("Error: Response is null");
+      }
+    } catch (error) {
+      print('Error  in fetching chapters data: $error');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    for (int i = 0; i < bhagwatitem.length; i++) {
-      _isBookmarked.add(false);
-    }
+    getChapters();
   }
+
 
   @override
   Widget build(BuildContext context) {
 
-    var screenHeight = MediaQuery.of(context).size.height;
     var screenWidth = MediaQuery.of(context).size.width;
 
-
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeManager.getInstance()!.isDarkMode ? ThemeData.dark() : ThemeData.light(),
-      home: Scaffold(
-        appBar: AppBar(
-            backgroundColor: ThemeManager.getInstance()!.isDarkMode ?  CustomColors.clrblack : CustomColors.clrorange,
-            leading: GestureDetector(
-              onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => SahityaHome(),));
-              },
-              child: Icon(Icons.arrow_back, color: CustomColors.clrwhite, size: screenWidth * 0.06),
-            ),
-            title: Text("Shrimad Bhagwat Geeta", style: TextStyle(fontSize: screenWidth * 0.05, fontWeight: FontWeight.w600, fontFamily: 'Roboto',color: CustomColors.clrwhite)),
-
-          actions: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
-              child: Row(
-                children: [
-
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => SavedItemsScreen(_savedItems,bhagwatitem,_removeItemFromSavedList)),
-                      );
-                    },child: Icon(Icons.bookmark,color: CustomColors.clrwhite,size: screenWidth * 0.06,)),
-                  SizedBox(width: screenWidth * 0.02,),
-                  Icon(Icons.search,color: CustomColors.clrwhite,size: screenWidth * 0.06,)
-
-                ],
+    return Consumer<SettingsProvider>(
+      builder: (BuildContext context, settingsProvider, Widget? child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: settingsProvider.isOn ? ThemeData.dark() : ThemeData.light(),
+          home: Scaffold(
+            appBar: AppBar(
+              backgroundColor:settingsProvider.isOn  ?  CustomColors.clrblack : CustomColors.clrorange,
+              leading: GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => SahityaHome(),));
+                },
+                child: Icon(Icons.arrow_back, color: CustomColors.clrwhite, size: screenWidth * 0.06),
               ),
+              title: Text("Shrimad Bhagwat Geeta", style: TextStyle(fontSize: screenWidth * 0.05, fontWeight: FontWeight.w600, fontFamily: 'Roboto',color: CustomColors.clrwhite)),
+
+              actions: [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
+                  child: Row(
+                    children: [
+
+                      GestureDetector(
+                          onTap: () {
+                            //Navigator.push(context, MaterialPageRoute(builder: (context) => SavedItemsScreen(_savedItems,bhagwatitem,_removeItemFromSavedList)),);
+                          },child: Icon(Icons.bookmark,color: CustomColors.clrwhite,size: screenWidth * 0.06,)),
+                      SizedBox(width: screenWidth * 0.02,),
+                      Icon(Icons.search,color: CustomColors.clrwhite,size: screenWidth * 0.06,)
+
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              Container(
-               color:ThemeManager.getInstance()!.isDarkMode ?  CustomColors.clrwhite : Colors.orange,
-               child: Center(child: Padding(
-                 padding: EdgeInsets.symmetric(vertical: screenWidth * 0.02),
-                 child: Text('Continue Reading - Arjun Vishad Yog(18)',style: TextStyle(fontFamily: 'Roboto',fontSize: screenWidth * 0.04,fontWeight: FontWeight.w600,color: ThemeManager.getInstance()!.isDarkMode ? CustomColors.clrblack : CustomColors.clrwhite),),
-               ))),
+            body: isLoading ? const Center(child: CircularProgressIndicator(color: Colors.black,backgroundColor: Colors.white,)):
 
-              ListView.builder(
-                shrinkWrap: true,
-                padding: EdgeInsets.symmetric(vertical: screenWidth * 0.08),
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: bhagwatitem.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding:  EdgeInsets.symmetric(horizontal: screenWidth * 0.02,vertical: screenWidth * 0.01),
-                    child: Column(
-                        children: [
+            SingleChildScrollView(
+              child: Column(
+                children: [
+                  Container(
+                      color: settingsProvider.isOn  ?  CustomColors.clrwhite : Colors.orange,
+                      child: Center(child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: screenWidth * 0.02),
+                        child: Text('Continue Reading - Arjun Vishad Yog(18)',style: TextStyle(fontFamily: 'Roboto',fontSize: screenWidth * 0.04,fontWeight: FontWeight.w600,color: settingsProvider.isOn  ? CustomColors.clrblack : CustomColors.clrwhite),),
+                      ))),
 
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02),
-                            child: Row(
+                  ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.symmetric(vertical: screenWidth * 0.08),
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: chapterData.length,
+                    itemBuilder: (context, index) {
+                      final chapter = chapterData[index];
+
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02, vertical: screenWidth * 0.01),
+                        child: Consumer<AudioPlayerManager>(
+                          builder: (BuildContext context, audioController, Widget? child) {
+
+                            bool isCurrentSongPlaying= audioController.isPlaying &&
+                                chapterData[index] == audioController.currentMusic;
+
+                            return Column(
                               children: [
-
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(context, MaterialPageRoute(builder: (context) => GitaScreen(selectedChapter: bhagwatitem[index].id ?? ''),));
-                                  },
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02),
                                   child: Row(
                                     children: [
-                                      Container(
-                                        height: screenWidth * 0.1,
-                                        width: screenWidth * 0.1,
-                                        decoration: BoxDecoration(
-                                        image: DecorationImage(image: NetworkImage("https://s3-alpha-sig.figma.com/img/36a3/2922/97b18f95800c21a19772628ab8e43252?Expires=1722816000&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=ACcazxZPRqxAvSBZY3n9~0b9nAKdkqts5mdAGQt7iCLb5Ud8qKPpViHXie6ra1Cc1WIX8uVjOBVpaxY3cycDS6qd1S~Ijd5-VqaHGPWWt239SbLcslOnMHBOXaKX9DVS0~-Zjf5nD7KLDeiCVxju-5~o2jJFFfjguPQvLflFM5sBEn5WZCXWNSGjAeQSfKC5svqzvfCrBwf~4JPTJtmWCHzIFZ3mhLidaGvNk4wT24hqg5RHCJUvwCT~nHFFbiaotgIUw6x2hLFJZvlOkfxw-rVYJuyGFJJWiEk4jM15dakS7YCE8hM1lQN5k9L1RfjDusOy-E3HDLs8GsM-vgfuJw__"))
+                                      GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(context, MaterialPageRoute(builder: (context) => GitaScreen(myId: chapter.chapter,chapterName: chapterData[index].chapterName,chapterImage: chapterData[index].chapterImage,chapterHindiName: chapterData[index].hiChapterName,),),);
+                                        },
+                                        child: Consumer<SettingsProvider>(
+                                          builder: (BuildContext context, settingsProvider, Widget? child) {
+                                            return Row(
+                                              children: [
+                                                Container(
+                                                  height: screenWidth * 0.1,
+                                                  width: screenWidth * 0.1,
+                                                  decoration: const BoxDecoration(
+                                                    image: DecorationImage(
+                                                      image: AssetImage("assets/image/imagecircle.png"), fit: BoxFit.cover
+                                                    ),
+                                                  ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      "${chapter.chapter}",
+                                                      style: TextStyle(
+                                                        fontSize: screenWidth * 0.03,
+                                                        fontFamily: 'Roboto',
+                                                        fontWeight: FontWeight.bold
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                Padding(
+                                                  padding: EdgeInsets.only(left: screenWidth * 0.05),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      SizedBox(
+                                                        width: screenWidth * 0.6,
+                                                        child: Text(
+                                                          chapter.hiChapterName ?? '',
+                                                          style: TextStyle(
+                                                            fontFamily: 'Roboto',
+                                                            fontWeight: FontWeight.w500,
+                                                            fontSize: settingsProvider.fontSize,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                          maxLines: 1,
+                                                        ),
+                                                      ),
+                                                      SizedBox(
+                                                        width: screenWidth * 0.6,
+                                                        child: Text(
+                                                          chapter.chapterName ?? '',
+                                                          style: TextStyle(
+                                                            fontSize: settingsProvider.fontSize,
+                                                            fontWeight: FontWeight.w400,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                          maxLines: 1,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
                                         ),
-                                        child: Center(
-                                          child: Text(bhagwatitem[index].id as String,style: TextStyle(fontSize: screenWidth * 0.03,fontFamily: 'Roboto',),
+                                      ),
+                                      Spacer(),
+
+                                      Row(
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () {
+                                              audioController.playMusic(chapterData[index].verses![index]);
+                                              },
+                                            child: Icon(
+                                              isCurrentSongPlaying ? Icons.pause : Icons.play_arrow,
+                                              size: screenWidth * 0.08,
+                                              color: CustomColors.clrorange,
+                                            ),
                                           ),
-                                        ),
+
+                                          SizedBox(width: screenWidth * 0.02),
+                                          // GestureDetector(
+                                          //   onTap: () {
+                                          //     setState(() {
+                                          //       if (!_isBookmarked[index]) {
+                                          //         _showSaveOptionsDialog(index);
+                                          //         _saveBookmark(index);
+                                          //         _isBookmarked[index] = true;
+                                          //       } else {
+                                          //         _removeBookmark(index);
+                                          //         _isBookmarked[index] = false;
+                                          //       }
+                                          //     });
+                                          //   },
+                                          //   child: Icon(
+                                          //     _isBookmarked[index] ? Icons.bookmark : Icons.bookmark_outline,
+                                          //     size: screenWidth * 0.07,
+                                          //     color: CustomColors.clrorange,
+                                          //   ),
+                                          // ),
+                                        ],
                                       ),
-                                      Padding(
-                                        padding:  EdgeInsets.only(left: screenWidth * 0.05),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            SizedBox(width: screenWidth * 0.6,child: Text(bhagwatitem[index].titile ?? '',style: TextStyle(fontFamily: 'Roboto',fontWeight: FontWeight.w500,fontSize: widget.fontSize,overflow: TextOverflow.ellipsis),maxLines: 1,)),
-                                            SizedBox(width: screenWidth * 0.6,child: Text(bhagwatitem[index].slok ?? '',style: TextStyle(fontSize: widget.fontSize,fontWeight: FontWeight.w400,overflow: TextOverflow.ellipsis),maxLines: 1,)),
-                                          ],
-                                        ),
-                                      ),
+
                                     ],
                                   ),
                                 ),
-
-                                Spacer(),
-                                Row(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-
-                                      },
-                                      child: Icon(Icons.play_arrow, size: screenWidth * 0.08, color: CustomColors.clrorange,),
-                                    ),
-                                    SizedBox(width: screenWidth * 0.02,),
-                                    GestureDetector(
-                                        onTap: () {
-                                          if(!_isBookmarked[index]){
-                                            setState(() {
-                                              _showSaveOptionsDialog(index);
-                                              _saveBookmark(index);
-                                            });
-                                            _isBookmarked[index] = false;
-                                          }else{
-                                            _removeBookmark(index);
-                                            setState(() {
-                                              _isBookmarked[index] = false;
-                                            });
-                                          }
-                                        },
-                                        child: Icon( _isBookmarked[index] ? Icons.bookmark: Icons.bookmark_outline, size: screenWidth * 0.07, color: CustomColors.clrorange,)),
-                                  ],
-                                )
+                                SizedBox(height: screenWidth * 0.02),
+                                Divider(
+                                  height: screenWidth * 0.002,
+                                  color: settingsProvider.isOn  ? Colors.orangeAccent : CustomColors.clrblack,
+                                ),
                               ],
-                            ),
-                          ),
-
-                          SizedBox(height: screenWidth * 0.02,),
-                          Divider(
-                              height: screenWidth * 0.002,
-                              color: ThemeManager.getInstance()!.isDarkMode ?  Colors.orangeAccent : CustomColors.clrblack,
-                          )
-                        ],
-                      ),
-                  );
-                },
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  )
+                ],
               ),
-            ],
+            ),
+
+            bottomNavigationBar: Consumer<AudioPlayerManager>(
+              builder: (context, musicManager, child) {
+                return musicManager.isMusicBarVisible
+                    ? const MusicBar()
+                    : const SizedBox.shrink();
+              },
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
+

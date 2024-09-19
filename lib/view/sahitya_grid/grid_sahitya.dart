@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sahityadesign/view/gita_chapter.dart';
-
-import '../ui_helpers/custom_colors.dart';
+import 'package:sahityadesign/view/gita_chapter/gita_chapter.dart';
+import '../../ui_helpers/custom_colors.dart';
 
 class GridSahitya extends StatefulWidget {
   const GridSahitya({super.key});
@@ -12,19 +11,10 @@ class GridSahitya extends StatefulWidget {
 
 class _GridSahityaState extends State<GridSahitya>{
 
-  double _fontSize = 14;
-
-  void _updateFontSize(double fontSize) {
-    setState(() {
-      _fontSize = fontSize;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
 
     var screenWidth = MediaQuery.of(context).size.width;
-    var screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: CustomColors.clrwhite,
@@ -44,7 +34,7 @@ class _GridSahityaState extends State<GridSahitya>{
                 padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02,vertical: screenWidth * 0.02),
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => GitaChapter(fontSize: _fontSize,),));
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => GeetaChapter(),));
                   },
                   child: Container(
                     decoration: BoxDecoration(
@@ -64,8 +54,8 @@ class _GridSahityaState extends State<GridSahitya>{
                         Container(
                             height: constraints.maxHeight * 0.6,
                             width: constraints.maxWidth * 1,
-                            decoration:BoxDecoration(
-                                borderRadius: const BorderRadius.only(topLeft: Radius.circular(10),topRight: Radius.circular(5)),
+                            decoration:const BoxDecoration(
+                                borderRadius: BorderRadius.only(topLeft: Radius.circular(10),topRight: Radius.circular(5)),
                               image: DecorationImage(image: NetworkImage("https://s3-alpha-sig.figma.com/img/cfcc/6aec/3ac0958bc4f545a194db3f798e8d8220?Expires=1722816000&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=lLPzeYyW0gQOIDmrN6peBPWxG2-~jet~uwDTqPSudcvxMg1yCgJv-xV7itbhdbvMhLEs0YGVi0vU020m56pqf1ccFwHSNktsa4-Becupsov4U2X7iY2jrFsJw1vjxh-8TaHhdUEalMH10eaOqz4B-6RLvaP1khyJ0LKrrkCLSPtW2lPSwD-a45imGxQ9rQ4mSfK0nbcbm4C-JsSjEGe~YAarl8aWejXojHB2zDGgtB2KNNB76OUqlhS~u7KrGKR97ajlEauqqYD2KE-i~4OGBZnyobspIUxXmYidhcSuAZqnzRYr89tcukAX7lJeXni3R0d6cWXXURGFjU4oYeb5Fw__"),fit: BoxFit.cover)
                               ),),
 
