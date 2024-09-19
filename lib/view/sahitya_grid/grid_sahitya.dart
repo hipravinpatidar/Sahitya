@@ -12,14 +12,7 @@ class GridSahitya extends StatefulWidget {
 
 class _GridSahityaState extends State<GridSahitya>{
 
-  bool _isDarkMode = false;
   double _fontSize = 14;
-
-  void _changeThemeMode(bool isDark) {
-    setState(() {
-      _isDarkMode = isDark;
-    });
-  }
 
   void _updateFontSize(double fontSize) {
     setState(() {
@@ -51,7 +44,7 @@ class _GridSahityaState extends State<GridSahitya>{
                 padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02,vertical: screenWidth * 0.02),
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => GitaChapter(isDarkMode: _isDarkMode,isIncrease: _fontSize,),));
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => GitaChapter(fontSize: _fontSize,),));
                   },
                   child: Container(
                     decoration: BoxDecoration(
@@ -73,8 +66,8 @@ class _GridSahityaState extends State<GridSahitya>{
                             width: constraints.maxWidth * 1,
                             decoration:BoxDecoration(
                                 borderRadius: const BorderRadius.only(topLeft: Radius.circular(10),topRight: Radius.circular(5)),
-                                image: DecorationImage(image: NetworkImage("https://s3-alpha-sig.figma.com/img/f2ae/00fc/51387a14c0774e081257e09ed40e5e7a?Expires=1721606400&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=eCIRf1~tQL9myZAUPelV-b49b5AcupdjyUsxtijOdm2nKgiT3Jq2Hiw0QtrDr-oiRzxnIseleZHJb9bfB~RTi~4aF5uOjw1VaawBgDvGEG0zZEMF5fklRIFfM2pQUjyTlTluAkrgCj17J8OQh088H0QWNIAMuYGo-yh3SHgkAaCMJckNPfEJS8QP~UMYh3JakZSyBnDWFxyTzIaNjFbXUkVnzHPbnSvaDMfsTkBkQIFkxwi~ztkij1-QLuKAla3DexOS~U84T67W79iUiKDdQjOupjCucsiC6Gf6LmHnkWY4uG5JuWwUkjvfue2BlHaCbtXQEeRLtwvPlxkm38kUvQ__"),fit: BoxFit.cover) )
-                        ),
+                              image: DecorationImage(image: NetworkImage("https://s3-alpha-sig.figma.com/img/cfcc/6aec/3ac0958bc4f545a194db3f798e8d8220?Expires=1722816000&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=lLPzeYyW0gQOIDmrN6peBPWxG2-~jet~uwDTqPSudcvxMg1yCgJv-xV7itbhdbvMhLEs0YGVi0vU020m56pqf1ccFwHSNktsa4-Becupsov4U2X7iY2jrFsJw1vjxh-8TaHhdUEalMH10eaOqz4B-6RLvaP1khyJ0LKrrkCLSPtW2lPSwD-a45imGxQ9rQ4mSfK0nbcbm4C-JsSjEGe~YAarl8aWejXojHB2zDGgtB2KNNB76OUqlhS~u7KrGKR97ajlEauqqYD2KE-i~4OGBZnyobspIUxXmYidhcSuAZqnzRYr89tcukAX7lJeXni3R0d6cWXXURGFjU4oYeb5Fw__"),fit: BoxFit.cover)
+                              ),),
 
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02,vertical: screenWidth * 0.02),
