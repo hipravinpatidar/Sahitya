@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'package:sahityadesign/api_service/api_service.dart';
 import 'package:sahityadesign/controller/settings_controller.dart';
@@ -7,133 +8,63 @@ import 'package:sahityadesign/ui_helpers/custom_colors.dart';
 import 'package:sahityadesign/view/detail_gita_shlok/gita_screen.dart';
 import 'package:sahityadesign/view/sahitya_home/sahitya_home.dart';
 import '../../controller/audio_controller.dart';
+import '../../model/shlokModel.dart';
 import '../../utils/music_bar.dart';
+import 'gits_static_model.dart';
 
-class GeetaChapter extends StatefulWidget {
-    const GeetaChapter({super.key,});
+class GitaStatic extends StatefulWidget {
+
+  final bool? isToast;
+
+   const GitaStatic({super.key,this.isToast});
 
   @override
-  State<GeetaChapter> createState() => _GeetaChapterState();
+  State<GitaStatic> createState() => _GitaStaticState();
 }
 
-class _GeetaChapterState extends State<GeetaChapter> {
+class _GitaStaticState extends State<GitaStatic> {
 
-  bool isLoading = false;
   late AudioPlayerManager audioManager = AudioPlayerManager();
 
-  List<MyChapters> chapterData = [];
-
-  Future<void> getChapters() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final Map<String, dynamic> jsonResponse = await ApiService().getMyChap(
-          'https://mahakal.rizrv.in/api/v1/sahitya/bhagavad-geeta/chapters');
-
-      if (jsonResponse.containsKey('status') &&
-          jsonResponse.containsKey('data') &&
-          jsonResponse['data'] != null) {
-        final chaptersGita = ChaptersGita.fromJson(jsonResponse);
-
-        setState(() {
-          chapterData = chaptersGita.data; // Assign the list of chapters to chapterData
-        });
-
-        print("Chapter data length: ${chapterData.length}");
-      } else {
-        print("Error: 'status' or 'data' key is missing or null in response.");
-      }
-    } catch (error) {
-      print('Error in fetching category data: $error');
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
-  // Future<void> getChapters() async {
-  //
-  //   setState(() {
-  //     isLoading = true;
-  //   });
-  //
-  //   try {
-  //     final Map<String, dynamic> jsonResponse = await ApiService().getMyChap(
-  //         'https://mahakal.rizrv.in/api/v1/sahitya/bhagavad-geeta/chapters');
-  //
-  //     // print(jsonResponse);
-  //     if (jsonResponse.containsKey('status') &&
-  //         jsonResponse.containsKey('data') &&
-  //         jsonResponse['data'] != null) {
-  //       final categoryModel = MyChapters.fromJson(jsonResponse);
-  //
-  //       print(categoryModel.name);
-  //
-  //       setState(() {
-  //         // chapterData = categoryModel;
-  //       });
-  //     } else {
-  //       print("Error: 'status' or 'data' key is missing or null in response.");
-  //     }
-  //   } catch (error) {
-  //     print('Error  in fetching category data: $error');
-  //   } finally {
-  //     setState(() {
-  //       isLoading = false;
-  //     });
-  //   }
-  //   print("${chapterData.length}");
-  // }
-
-  // Future<void> getChapters() async {
-  //   setState(() {
-  //     isLoading = true;
-  //   });
-  //
-  //   try {
-  //     final jsonResponse = await ApiService().getChapters('https://mahakal.rizrv.in/api/v1/sahitya/bhagavad-geeta/chapters');
-  //
-  //     if (jsonResponse != null) {
-  //       final Map<String, dynamic> jsonMap = jsonResponse;
-  //
-  //
-  //       if (jsonMap.containsKey('status') &&
-  //           jsonMap.containsKey('data') &&
-  //           jsonMap['data'] != null) {
-  //
-  //         final chapterModel = ShlokModel.fromJson(jsonMap);
-  //
-  //         print(chapterModel);
-  //
-  //         setState(() {
-  //           chapterData =  chapterModel.data;
-  //         });
-  //       } else {
-  //         print("Error: 'status' or 'data' key is missing or null in response.");
-  //       }
-  //     } else {
-  //       print("Error: Response is null");
-  //     }
-  //   } catch (error) {
-  //     print('Error  in fetching chapters data: $error');
-  //   } finally {
-  //     setState(() {
-  //       isLoading = false;
-  //     });
-  //   }
-  // }
+  bool isLoading = true;
+  
+  List<GitaItems> gitaItems = [
+    
+    GitaItems(enName: "ARJUN VISHAD YOGA",hiName: "अर्जुन विषद योग",serailNumber: 1,totalCount: 47),
+    GitaItems(enName: "SANKHYA YOGA",hiName: "सांख्य योग",serailNumber: 2,totalCount: 72),
+    GitaItems(enName: "KARMA YOGA",hiName: "कर्म योग",serailNumber: 3,totalCount: 43),
+    GitaItems(enName: "GYAAN KARMA SANNYAAS YOGA",hiName: "ज्ञान कर्म संन्यास योग",serailNumber: 4,totalCount: 42),
+    GitaItems(enName: "KARMA SANNYASA YOGA",hiName: "कर्म संन्यास योग",serailNumber: 5,totalCount: 29),
 
 
+    GitaItems(enName: "DHYAAN YOGA",hiName: "ध्यान योग",serailNumber: 6,totalCount: 47),
+    GitaItems(enName: "GYAAN VIGYAAN YOG",hiName: "ज्ञान विज्ञान योग",serailNumber: 7,totalCount: 30),
+    GitaItems(enName: "AKSHAR BRAHMA YOGA",hiName: "अक्षर ब्रह्म योग",serailNumber: 8,totalCount: 28),
+    GitaItems(enName: "RAJVIDYA RAJGUHYA YOGA",hiName: "राजविद्या राजगुह्य योग",serailNumber: 9,totalCount: 34),
+    GitaItems(enName: "VIBHUTI YOGA",hiName: "विभूति योग",serailNumber: 10,totalCount: 42),
 
+    GitaItems(enName: "VISHVARUP DARSHAN YOGA",hiName: "विश्वरूप दर्शन योग",serailNumber: 11,totalCount: 55),
+    GitaItems(enName: "BHAKTIYOGA",hiName: "भक्तियोग",serailNumber: 12,totalCount: 20),
+    GitaItems(enName: "KSHETR KSHETRAGY VIBHAAG YOGA",hiName: "क्षेत्रक्षेत्रविभाग योग",serailNumber: 13,totalCount: 35),
+    GitaItems(enName: "GUNATRAY VIBHAG YOGA",hiName: "गुणत्रय विभाग योग",serailNumber: 14,totalCount: 27),
+    GitaItems(enName: "PURUSHOTTAM YOGA",hiName: "पुरूषोत्तम योग",serailNumber: 15,totalCount: 0),
+
+    GitaItems(enName: "DAIVASUR SAMPADA VIBHAG YOGA",hiName: "दैवसुर सम्पदा विभाग योग",serailNumber: 16,totalCount: 46),
+    GitaItems(enName: "SHRADDHAATRAY VIBHAAG YOGA",hiName: "श्रद्धात्रय विभाग योग",serailNumber: 17,totalCount: 46),
+    GitaItems(enName: "MOKSHA SANNYASA YOGA",hiName: "मोक्ष संन्यास योग",serailNumber: 18,totalCount: 46),
+
+    
+  ];
+  
   @override
   void initState() {
     super.initState();
-    getChapters();
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() {
+        isLoading = false;
+      });
+    });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +81,8 @@ class _GeetaChapterState extends State<GeetaChapter> {
               backgroundColor:settingsProvider.isOn  ?  CustomColors.clrblack : CustomColors.clrorange,
               leading: GestureDetector(
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => SahityaHome(),));
+                 // Navigator.pop(context);
+                  //Navigator.push(context, MaterialPageRoute(builder: (context) => SahityaHome(),));
                 },
                 child: Icon(Icons.arrow_back, color: CustomColors.clrwhite, size: screenWidth * 0.06),
               ),
@@ -174,7 +106,8 @@ class _GeetaChapterState extends State<GeetaChapter> {
                 ),
               ],
             ),
-            body: isLoading ? const Center(child: CircularProgressIndicator(color: Colors.black,backgroundColor: Colors.white,)):
+            body: 
+            isLoading ? const Center(child: CircularProgressIndicator(color: Colors.black,backgroundColor: Colors.white,)):
 
             SingleChildScrollView(
               child: Column(
@@ -188,11 +121,11 @@ class _GeetaChapterState extends State<GeetaChapter> {
 
                   ListView.builder(
                     shrinkWrap: true,
-                    padding: EdgeInsets.symmetric(vertical: screenWidth * 0.08),
+                    padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: chapterData.length,
+                    itemCount: gitaItems.length,
                     itemBuilder: (context, index) {
-                      final chapter = chapterData[index];
+                      final chapter = gitaItems[index];
 
                       return Padding(
                         padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02, vertical: screenWidth * 0.01),
@@ -200,7 +133,7 @@ class _GeetaChapterState extends State<GeetaChapter> {
                           builder: (BuildContext context, audioController, Widget? child) {
 
                             bool isCurrentSongPlaying= audioController.isPlaying &&
-                                chapterData[index] == audioController.currentMusic;
+                                gitaItems[index] == audioController.currentMusic;
 
                             return Column(
                               children: [
@@ -210,7 +143,7 @@ class _GeetaChapterState extends State<GeetaChapter> {
                                     children: [
                                       GestureDetector(
                                         onTap: () {
-                                          Navigator.push(context, MaterialPageRoute(builder: (context) => GitaScreen(myId: chapter.id,chapterName: chapterData[index].name,chapterImage: chapterData[index].image,chapterHindiName: chapterData[index].hiName,verseCount: chapterData[index].verseCount,),),);
+                                          Navigator.push(context, MaterialPageRoute(builder: (context) => GitaScreen(myId: chapter.serailNumber,chapterName: gitaItems[index].enName,chapterHindiName: gitaItems[index].hiName,verseCount: gitaItems[index].totalCount,),),);
                                         },
                                         child: Consumer<SettingsProvider>(
                                           builder: (BuildContext context, settingsProvider, Widget? child) {
@@ -221,16 +154,16 @@ class _GeetaChapterState extends State<GeetaChapter> {
                                                   width: screenWidth * 0.1,
                                                   decoration: const BoxDecoration(
                                                     image: DecorationImage(
-                                                      image: AssetImage("assets/image/imagecircle.png"), fit: BoxFit.cover
+                                                        image: AssetImage("assets/image/imagecircle.png"), fit: BoxFit.cover
                                                     ),
                                                   ),
                                                   child: Center(
                                                     child: Text(
-                                                      "${chapter.id}",
+                                                      "${chapter.serailNumber}",
                                                       style: TextStyle(
-                                                        fontSize: screenWidth * 0.03,
-                                                        fontFamily: 'Roboto',
-                                                        fontWeight: FontWeight.bold
+                                                          fontSize: screenWidth * 0.03,
+                                                          fontFamily: 'Roboto',
+                                                          fontWeight: FontWeight.bold
                                                       ),
                                                     ),
                                                   ),
@@ -257,7 +190,7 @@ class _GeetaChapterState extends State<GeetaChapter> {
                                                       SizedBox(
                                                         width: screenWidth * 0.6,
                                                         child: Text(
-                                                          chapter.name ?? '',
+                                                          chapter.enName ?? '',
                                                           style: TextStyle(
                                                             fontSize: settingsProvider.fontSize,
                                                             fontWeight: FontWeight.w400,
@@ -280,7 +213,7 @@ class _GeetaChapterState extends State<GeetaChapter> {
                                       //   children: [
                                       //     GestureDetector(
                                       //       onTap: () {
-                                      //         audioController.playMusic(chapterData[index].verses![index]);
+                                      //         audioController.playMusic(gitaItems[index].verses![index]);
                                       //         },
                                       //       child: Icon(
                                       //         isCurrentSongPlaying ? Icons.pause : Icons.play_arrow,
@@ -326,18 +259,32 @@ class _GeetaChapterState extends State<GeetaChapter> {
                         ),
                       );
                     },
-                  )
+                  ),
+
+
                 ],
               ),
             ),
 
-            bottomNavigationBar: Consumer<AudioPlayerManager>(
-              builder: (context, musicManager, child) {
-                return musicManager.isMusicBarVisible
-                    ? const MusicBar()
-                    : const SizedBox.shrink();
-              },
+            bottomNavigationBar: Visibility(
+              visible: widget.isToast ?? false,
+              child: Container(
+                padding: EdgeInsets.all(10.0),
+                margin: EdgeInsets.all(10.0),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                child: Text(
+                  "No internet connection",
+                  style: TextStyle(
+                    fontSize: 16.0,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ),
+
           ),
         );
       },

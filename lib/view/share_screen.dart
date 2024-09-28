@@ -4,6 +4,7 @@ import 'package:sahityadesign/model/chapters_model.dart';
 import 'package:sahityadesign/ui_helpers/custom_colors.dart';
 import 'package:screenshot/screenshot.dart';
 import '../controller/share_verse.dart';
+import '../model/shlokModel.dart';
 
 class ShareScreen extends StatefulWidget {
     ShareScreen({super.key,required this.gitaShlok,required this.shlokMeaning,required this.detailsModel, this.chapterName, this.verseSerial});
@@ -47,6 +48,12 @@ class _ShareScreenState extends State<ShareScreen> {
     "assets/image/imagefirst.jpg",
     "assets/image/imagesecond.jpg",
     "assets/image/imagethird.jpg",
+    "assets/image/imagefourth.jpg",
+    "assets/image/imagefifth.jpg",
+    "assets/image/imagesixth.jpg",
+    "assets/image/imageseventh.jpg",
+    "assets/image/imageeighth.jpg",
+    "assets/image/imageninth.jpg",
 
   ];
 

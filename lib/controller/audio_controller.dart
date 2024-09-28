@@ -1,6 +1,9 @@
+import 'dart:io' as io;
 import 'package:just_audio/just_audio.dart';
-import 'package:sahityadesign/model/chapters_model.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+
+import '../model/shlokModel.dart';
 
 enum ShuffleMode {
   playNext,
@@ -38,6 +41,10 @@ class AudioPlayerManager extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  void resetMusicBarVisibility() {
+    _isMusicBarVisible = false;
+  }
+
   void toggleMusicBarVisibility() {
     _isMusicBarVisible = !_isMusicBarVisible;
     notifyListeners();
@@ -49,67 +56,112 @@ class AudioPlayerManager extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+
   Future<void> playMusic(
-    Verse music,
-  ) async {
+      Verse music,
+      ) async {
     try {
-      await _audioPlayer.setUrl(music.verseData?.audioUrl ?? '');
-      _audioPlayer.play();
-      _isMusicBarVisible = true;
-      _currentMusic = music;
-      _currentIndex = _playlist.indexOf(music);
-      _isPlaying = true;
-      _audioPlayer.durationStream.listen((duration) {
-        _duration = duration ?? Duration.zero;
-        notifyListeners();
-      });
+      final directory = await getApplicationDocumentsDirectory();
+      final audioFile = io.File('${directory.path}/${music.verse}.mp3');
 
-      _audioPlayer.positionStream.listen((position) {
-        _currentPosition = position;
-        notifyListeners();
-      });
+      if (await audioFile.existsSync()) {
+        await _audioPlayer.setUrl('file://${audioFile.path}');
+        _audioPlayer.play();
+        _isMusicBarVisible = true;
+        _currentMusic = music;
+        _currentIndex = _playlist.indexOf(music);
+        _isPlaying = true;
+        _audioPlayer.durationStream.listen((duration) {
+          _duration = duration ?? Duration.zero;
+          notifyListeners();
+        });
 
-      _audioPlayer.playerStateStream.listen((state) {
-        if (state.processingState == ProcessingState.completed) {
-          switch (_shuffleMode) {
-            case ShuffleMode.playNext:
-              skipNext(); // Automatically skip to next
-              break;
-            case ShuffleMode.playOnceAndClose:
-              pauseMusic();
-              break;
-            case ShuffleMode.playOnLoop:
-              _audioPlayer.seek(Duration.zero);
-              _audioPlayer.play();
-              break;
+        _audioPlayer.positionStream.listen((position) {
+          _currentPosition = position;
+          notifyListeners();
+        });
+
+        _audioPlayer.playerStateStream.listen((state) {
+          if (state.processingState == ProcessingState.completed) {
+            switch (_shuffleMode) {
+              case ShuffleMode.playNext:
+                skipNext(); // Automatically skip to next
+                break;
+              case ShuffleMode.playOnceAndClose:
+                pauseMusic();
+                break;
+              case ShuffleMode.playOnLoop:
+                _audioPlayer.seek(Duration.zero);
+                _audioPlayer.play();
+                break;
+            }
           }
-        }
-      });
+        });
 
-      await _updateNotification();
-      notifyListeners();
+        await _updateNotification();
+        notifyListeners();
+      } else {
+        // Handle the case when the audio file does not exist
+        print("Audio file not found");
+      }
     } catch (error) {
       print('Error playing music: $error');
     }
   }
 
-  void pauseMusic() async {
-    _audioPlayer.pause();
-    _isPlaying = false;
-    _currentPosition = _audioPlayer.position; // Store the current position
-    await _updateNotification();
-    notifyListeners();
-  }
 
-  void resumeMusic() async {
-    if (_currentMusic != null) {
-      // Resume the music from the last position
-      await _audioPlayer.seek(_currentPosition);
-      await _audioPlayer.play();
-      _isPlaying = true;
-      await _updateNotification();
-      notifyListeners();
-    }
+
+  // Future<void> playMusic(
+  //   Verse music,
+  // ) async {
+  //   try {
+  //     await _audioPlayer.setUrl(music.verseData?.audioUrl ?? '');
+  //     _audioPlayer.play();
+  //     _isMusicBarVisible = true;
+  //     _currentMusic = music;
+  //     _currentIndex = _playlist.indexOf(music);
+  //     _isPlaying = true;
+  //     _audioPlayer.durationStream.listen((duration) {
+  //       _duration = duration ?? Duration.zero;
+  //       notifyListeners();
+  //     });
+  //
+  //     _audioPlayer.positionStream.listen((position) {
+  //       _currentPosition = position;
+  //       notifyListeners();
+  //     });
+  //
+  //     _audioPlayer.playerStateStream.listen((state) {
+  //       if (state.processingState == ProcessingState.completed) {
+  //         switch (_shuffleMode) {
+  //           case ShuffleMode.playNext:
+  //             skipNext(); // Automatically skip to next
+  //             break;
+  //           case ShuffleMode.playOnceAndClose:
+  //             pauseMusic();
+  //             break;
+  //           case ShuffleMode.playOnLoop:
+  //             _audioPlayer.seek(Duration.zero);
+  //             _audioPlayer.play();
+  //             break;
+  //         }
+  //       }
+  //     });
+  //
+  //     await _updateNotification();
+  //     notifyListeners();
+  //   } catch (error) {
+  //     print('Error playing music: $error');
+  //   }
+  // }
+
+
+  void stopMusic(){
+    _audioPlayer.stop();
+    _isPlaying = false;
+    _isMusicBarVisible = false;
+    notifyListeners();
+
   }
 
   void togglePlayPause() async {
@@ -117,14 +169,19 @@ class AudioPlayerManager extends ChangeNotifier with WidgetsBindingObserver {
       pauseMusic();
     } else {
       if (_currentMusic != null) {
-        _audioPlayer.seek(_currentPosition); // Restore the position
-        // _audioPlayer.play();
-        resumeMusic();
+        _audioPlayer.play();
         _isPlaying = true;
         await _updateNotification();
         notifyListeners();
       }
     }
+  }
+
+  void pauseMusic() async {
+    _audioPlayer.pause();
+    _isPlaying = false;
+    await _updateNotification();
+    notifyListeners();
   }
 
   void skipNext() {

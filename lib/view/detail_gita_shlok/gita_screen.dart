@@ -1,31 +1,39 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:sahityadesign/controller/audio_controller.dart';
 import 'package:sahityadesign/controller/bookmark_provider.dart';
 import 'package:sahityadesign/controller/settings_controller.dart';
 import 'package:sahityadesign/view/bookmarkscreen.dart';
+import 'package:sahityadesign/view/gitastatic.dart';
 import '../../api_service/api_service.dart';
-import '../../model/chapters_model.dart';
+import '../../model/shlokModel.dart';
 import '../../ui_helpers/custom_colors.dart';
 import '../../utils/circle_container.dart';
 import '../../utils/music_bar.dart';
 import '../share_screen.dart';
 import 'package:html/parser.dart' as html_parser;
+import 'package:http/http.dart' as http;
 
 class GitaScreen extends StatefulWidget {
-  const GitaScreen(
+  int? verseCount;
+  GitaScreen(
       {super.key,
       this.myId,
       this.chapterName,
       this.chapterImage,
-      this.chapterHindiName});
+      this.chapterHindiName,required this.verseCount});
 
   final int? myId;
   final String? chapterName;
   final String? chapterHindiName;
   final String? chapterImage;
+
 
   @override
   State<GitaScreen> createState() => _GitaScreenState();
@@ -33,6 +41,8 @@ class GitaScreen extends StatefulWidget {
 
 class _GitaScreenState extends State<GitaScreen> {
   bool isLoading = false;
+  //bool notConnection = false;
+ bool _hasInternet = false;
   bool _showBookFormate = false;
 
   String _selectedChap = 'Chapter 1';
@@ -43,12 +53,15 @@ class _GitaScreenState extends State<GitaScreen> {
   double _textSize = 15.0;
 
   int? _currentPlayingIndex;
+  int _verse = 1;
   final int _highlightedIndex = -1;
 
   late List<GlobalKey> itemKeys = [];
   late AudioPlayerManager audioManager = AudioPlayerManager();
   late SettingsProvider settingsProvider = SettingsProvider();
   late BookmarkProvider bookmarkProvider = BookmarkProvider();
+
+  ScrollController _scrollController = ScrollController();
 
   final List<String> _chapOptions = [
     'Chapter 1',
@@ -93,42 +106,418 @@ class _GitaScreenState extends State<GitaScreen> {
 
   List<Verse> chapterData = [];
 
+ // This IS My Working Code
+
+
+  // Future<void> getChapters() async {
+  //   if (widget.verseCount! == chapterData.length) return;
+  //
+  //   setState(() {
+  //     isLoading = true;
+  //   });
+  //
+  //   try {
+  //     final ApiService apiService = ApiService();
+  //     final res = await apiService.getChapters(
+  //       "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}",
+  //     );
+  //
+  //     if (res != null) {
+  //       final jsonString = jsonEncode(res);
+  //       final chaptersModel = ShlokModelFromJson(jsonString);
+  //
+  //       if (chaptersModel.data!.isNotEmpty) {
+  //         final newChapterData = chaptersModel.data![0].verses!;
+  //
+  //         // Save the data for the current chapter locally
+  //         await saveDataLocally(newChapterData, widget.myId);
+  //         //audioManager.setPlaylist(chapterData);
+  //       } else {
+  //         print('No chapters data available');
+  //       }
+  //     } else {
+  //       print('No data received');
+  //     }
+  //   } catch (e) {
+  //     print("Error fetching data for chapter ${widget.myId}: $e");
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         isLoading = false;
+  //       });
+  //     }
+  //   }
+  // }
+
+  // Save data locally as a JSON file for each chapter
+
+  Future<void> checkInternet() async {
+    _hasInternet = !(await isConnected()); // Invert the value of isConnected()
+    print("${_hasInternet}");
+    setState(() {}); // Update the UI with the new value
+  }
+
+  Future<void> saveDataLocally(List<Verse> data, int? chapterId) async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/chapter_$chapterId.json'); // Save each chapter in a separate file
+
+      // Convert data to JSON and write to the file
+      String jsonData = jsonEncode(data.map((e) => e.toJson()).toList());
+      await file.writeAsString(jsonData);
+      print("Data for chapter $chapterId saved locally");
+
+      // Download audio files
+      for (var verse in data) {
+        if (verse.verseData?.audioUrl != null) {
+          final audioFile = File('${directory.path}/${verse.verse}.mp3');
+          if (!await audioFile.exists()) {
+            final response = await http.get(Uri.parse(verse.verseData!.audioUrl!));
+            await audioFile.writeAsBytes(response.bodyBytes);
+            print("Audio for verse ${verse.verse} saved locally");
+          }
+        }
+      }
+
+      // Load data from JSON file and show in UI
+      await loadChaptersFromLocal(chapterId);
+    } catch (e) {
+      print("Error saving data locally for chapter $chapterId: $e");
+    }
+  }
+
+  Future<void> loadChaptersFromLocal(int? chapterId) async {
+    print("Loading data for chapter $chapterId from local storage");
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/chapter_$chapterId.json'); // Load the specific chapter file
+
+      // Check if the file exists
+      if (await file.exists()) {
+        final jsonString = await file.readAsString();
+        final List<dynamic> jsonData = jsonDecode(jsonString);
+
+        setState(() {
+          chapterData = jsonData.map((item) => Verse.fromJson(item)).toList();
+          audioManager.setPlaylist(chapterData);
+        });
+        print("Data for chapter $chapterId loaded from local file");
+      } else {
+        print("Local file for chapter $chapterId does not exist");
+      }
+    } catch (e) {
+      print("Error loading data for chapter $chapterId from local file: $e");
+    }
+  }
+
+// Check if data is already saved locally
+  Future<void> checkLocalData(int chapterId) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/chapter_$chapterId.json'); // Load the specific chapter file
+
+    // Check if the file exists
+    if (await file.exists()) {
+      await loadChaptersFromLocal(chapterId);
+    } else {
+      if (await isConnected()) {
+        await getChapters();
+      } else {
+       // setState(() {
+          print("No Internet Connection");
+          print("${_hasInternet}");
+
+          Future.delayed(Duration(seconds: 2), () {
+            //Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (context) => GitaStatic(isToast: _hasInternet),));
+            // Fluttertoast.showToast(
+            //   msg: "No internet connection",
+            //   toastLength: Toast.LENGTH_LONG,
+            //   gravity: ToastGravity.SNACKBAR,
+            //   timeInSecForIosWeb: 1,
+            //   backgroundColor: Colors.grey,
+            //   textColor: Colors.white,
+            //   fontSize: 16.0,
+            // );
+          });
+
+
+      //  });
+
+      }
+    }
+  }
+
+// Fetch chapters from API or load from local file
+  Future<void> fetchChapters() async {
+    int chapterId = widget.myId ?? 1; // Default to chapter 1 if no chapterId is provided
+    await checkLocalData(chapterId);
+  }
+
+  Future<bool> isConnected() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+
+    // If no network at all (neither mobile data nor Wi-Fi)
+    if (connectivityResult == ConnectivityResult.none) {
+      return false;
+    }
+
+    // Try pinging a well-known server (like Google) to check actual internet access
+    try {
+      final result = await http.get(Uri.parse('https://google.com')).timeout(
+        Duration(seconds: 5),
+      );
+
+      if (result.statusCode == 200) {
+        return true; // Internet is working
+      } else {
+        return false; // Connected to network, but no internet access
+      }
+    } catch (e) {
+      return false; // No internet access
+    }
+  }
+
+
+  // Future<bool> isConnected() async {
+  //   var connectivityResult = await Connectivity().checkConnectivity();
+  //
+  //   // If no network at all (neither mobile data nor Wi-Fi)
+  //   if (connectivityResult == ConnectivityResult.none) {
+  //     return false;
+  //   }
+  //
+  //   // Try pinging a well-known server (like Google) to check actual internet access
+  //   try {
+  //     final result = await http.get(Uri.parse('https://google.com')).timeout(
+  //       Duration(seconds: 5),
+  //     );
+  //
+  //     if (result.statusCode == 200) {
+  //       return true; // Internet is working
+  //     } else {
+  //       return false; // Connected to network, but no internet access
+  //     }
+  //   } catch (e) {
+  //     return false; // No internet access
+  //   }
+  // }
+
   Future<void> getChapters() async {
-    print(" My Data ${widget.myId}");
+    // Prevent multiple calls if already loading
+    if (isLoading) return;
+
+    // Check if all verses are already loaded
+    if (widget.verseCount! == chapterData.length) return;
+
     setState(() {
       isLoading = true;
     });
+
     try {
       final ApiService apiService = ApiService();
-      final res = await apiService.getChapters(
-          "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}");
+      bool isFirstIteration = true; // To track the first iteration
 
-      if (res != null) {
-        final jsonString = jsonEncode(res); // Convert res to a JSON string
-        final chaptersModel = chaptersModelFromJson(jsonString);
+      // Loop over the required iterations (1 to 2)
+      for (int i = 1; i < (_verse > 4 ? 5 : 10); i++) {
+        final res = await apiService.getChapters(
+          "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}&verse=$_verse",
+        );
 
-        setState(() {
-          // Assuming you want to get verses from the first chapter
+        if (res != null) {
+          final jsonString = jsonEncode(res); // Convert the response to JSON
+          final chaptersModel = ShlokModelFromJson(jsonString);
+
+          // Check if there is valid data
           if (chaptersModel.data!.isNotEmpty) {
-            chapterData = chaptersModel.data![0].verses!;
-            audioManager.setPlaylist(chapterData);
-          } else {
-            chapterData = []; // Handle case where there are no chapters
-          }
-          isLoading = false;
-        });
+            final newVerse = chaptersModel.data![0].verses![0];
 
-        print("Verse length is ${chapterData.length}");
-      } else {
-        print('No data received');
+            // Ensure no duplicate data is added
+            if (!chapterData.contains(newVerse)) {
+              setState(() {
+                chapterData.add(newVerse); // Add the data to the list
+                print(_verse);
+                if (isFirstIteration) {
+                  // Set the playlist on first iteration
+                  isFirstIteration = false;
+                  audioManager.setPlaylist(chapterData);
+                }
+                _verse++; // Increment the verse for the next request
+              });
+
+              // Save the data to json file
+              await saveDataLocally(chapterData, widget.myId);
+
+              // Wait for the setState to complete and data to be added before continuing
+              await Future.delayed(Duration(milliseconds: 200));
+            }
+          } else {
+            print('No chapters data available');
+            break; // Break the loop if no more data is available
+          }
+        } else {
+          print('No data received');
+          break; // Exit the loop if no data is received
+        }
       }
+
+      setState(() {
+        isLoading = false; // Loading finished
+      });
+
     } catch (e) {
-      print("Error is ${e}");
+      print("Error fetching data for chapter ${widget.myId}: $e");
       setState(() {
         isLoading = false;
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
+
+
+
+  // Future<void> getChapters() async {
+  //   setState(() {
+  //     isLoading = true;
+  //   });
+  //
+  //   try {
+  //     final ApiService apiService = ApiService();
+  //     bool isFirstIteration = true; // To track the first iteration
+  //
+  //     // Loop over the required iterations (1 to 2)
+  //     for (int i = 1; i < (_verse > 4 ? 5 : 10); i++) {
+  //       final res = await apiService.getChapters(
+  //         "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}&verse=$_verse",
+  //       );
+  //
+  //       if (res != null) {
+  //         final jsonString = jsonEncode(res); // Convert the response to JSON
+  //         final chaptersModel = ShlokModelFromJson(jsonString);
+  //
+  //         // Check if there is valid data
+  //         if (chaptersModel.data!.isNotEmpty) {
+  //           final newChapterData = chaptersModel.data![0].verses!;
+  //
+  //           // Ensure no duplicate data is added
+  //           if (!chapterData.contains(newChapterData)) {
+  //             setState(() {
+  //               chapterData.addAll(newChapterData); // Add the data to the list
+  //               print(_verse);
+  //               if (isFirstIteration) {
+  //                 // Set the playlist on first iteration
+  //                 isFirstIteration = false;
+  //                 audioManager.setPlaylist(chapterData);
+  //               }
+  //               _verse++; // Increment the verse for the next request
+  //             });
+  //
+  //             // Save the data to json file
+  //             await saveDataLocally(chapterData, widget.myId);
+  //
+  //             // Wait for the setState to complete and data to be added before continuing
+  //             await Future.delayed(Duration(milliseconds: 200));
+  //           }
+  //         } else {
+  //           print('No chapters data available');
+  //           break; // Break the loop if no more data is available
+  //         }
+  //       } else {
+  //         print('No data received');
+  //         break; // Exit the loop if no data is received
+  //       }
+  //     }
+  //
+  //     setState(() {
+  //       isLoading = false; // Loading finished
+  //     });
+  //
+  //   } catch (e) {
+  //     print("Error fetching data for chapter ${widget.myId}: $e");
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         isLoading = false;
+  //       });
+  //     }
+  //   }
+  // }
+
+
+
+
+
+
+
+  // Future<void> getChapters() async {
+  //   if (isLoading) return; // Prevent multiple calls if already loading
+  //   if(widget.verseCount! == chapterData.length) return;
+  //   print(widget.verseCount!);
+  //   print(chapterData.length);
+  //   setState(() {
+  //     isLoading = true;
+  //   });
+  //
+  //   try {
+  //     final ApiService apiService = ApiService();
+  //     bool isFirstIteration = true; // To track the first iteration
+  //
+  //     // Loop over the required iterations (1 to 2)
+  //     for (int i = 1; i < (_verse > 4?5:10); i++) {
+  //       final res = await apiService.getChapters(
+  //         "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}&verse=$_verse",
+  //       );
+  //
+  //       if (res != null) {
+  //         final jsonString = jsonEncode(res); // Convert the response to JSON
+  //         final chaptersModel = ShlokModelFromJson(jsonString);
+  //
+  //         // Check if there is valid data
+  //         if (chaptersModel.data!.isNotEmpty) {
+  //           final verse = chaptersModel.data![0].verses![0];
+  //
+  //           // Ensure no duplicate data is added
+  //           if (!chapterData.contains(verse)) {
+  //             setState(() {
+  //               chapterData.add(verse); // Add the data to the list
+  //               print(_verse);
+  //               if (isFirstIteration) {
+  //                 // Set the playlist on first iteration
+  //                 isFirstIteration = false;
+  //                 audioManager.setPlaylist(chapterData);
+  //               }
+  //               _verse++; // Increment the verse for the next request
+  //             });
+  //
+  //             // Wait for the setState to complete and data to be added before continuing
+  //             await Future.delayed(Duration(milliseconds: 200));
+  //           }
+  //         } else {
+  //           print('No chapters data available');
+  //           break; // Break the loop if no more data is available
+  //         }
+  //       } else {
+  //         print('No data received');
+  //         break; // Exit the loop if no data is received
+  //       }
+  //     }
+  //
+  //     setState(() {
+  //       isLoading = false; // Loading finished
+  //     });
+  //
+  //   } catch (e) {
+  //     print("Error: $e");
+  //     setState(() {
+  //       isLoading = false;
+  //     });
+  //   }
+  // }
 
   @override
   void didChangeDependencies() {
@@ -136,28 +525,34 @@ class _GitaScreenState extends State<GitaScreen> {
     audioManager = Provider.of<AudioPlayerManager>(context);
   }
 
+  late VoidCallback _listener;
+
   @override
   void initState() {
     super.initState();
     //  Initialize AudioPlayerManager
     audioManager = Provider.of<AudioPlayerManager>(context, listen: false);
-
     // Listen for changes in current index
-    audioManager.addListener(() {
+    _listener = () {
       if (audioManager.currentIndex != _currentPlayingIndex) {
         print("My Audio Current Index is ${audioManager.currentIndex}");
-        setState(() {
-          _currentPlayingIndex = audioManager.currentIndex;
-          print("$_currentPlayingIndex");
-        });
+        if (mounted) {
+          setState(() {
+            _currentPlayingIndex = audioManager.currentIndex;
+            print("$_currentPlayingIndex");
+          });
+        }
       }
-    });
-
-    getChapters();
+    };
+    audioManager.addListener(_listener);
+   // getChapters();
+    fetchChapters();
+    checkInternet();
   }
 
   @override
   void dispose() {
+    audioManager.removeListener(_listener);
     super.dispose();
   }
 
@@ -836,13 +1231,8 @@ class _GitaScreenState extends State<GitaScreen> {
   }
 
   // Bottom Sheet for read hindi
-  void _showTranslationBottomSheet(
-      BuildContext context,
-      String hindiDescription,
-      int audioIndex,
-      String englishDescription,
-      String image) {
-    String parsedLyrics = html_parser.parse(hindiDescription).body?.text ?? '';
+  void _showTranslationBottomSheet(BuildContext context, String hindiDescription, int audioIndex, String englishDescription, String image) {
+       String parsedLyrics = html_parser.parse(hindiDescription).body?.text ?? '';
 
     showModalBottomSheet(
       backgroundColor: CustomColors.clrwhite,
@@ -1052,674 +1442,823 @@ class _GitaScreenState extends State<GitaScreen> {
     var screenWidth = MediaQuery.of(context).size.width;
 
     return Consumer<SettingsProvider>(
-      builder: (BuildContext context, settingsProvider, Widget? child) {
+    builder: (BuildContext context, settingsProvider, Widget? child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: settingsProvider.isOn ? ThemeData.dark() : ThemeData.light(),
           home: SafeArea(
               child: Scaffold(
-            body: isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                    color: CustomColors.clrblack,
-                    backgroundColor: Colors.white,
-                  ))
-                : CustomScrollView(
-                    slivers: [
-                      SliverAppBar(
-                        floating: true,
-                        snap: true,
-                        backgroundColor: settingsProvider.isOn
-                            ? CustomColors.clrblack
-                            : CustomColors.clrorange,
-                        leading: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                          },
-                          child: Icon(Icons.arrow_back,
-                              color: CustomColors.clrwhite,
-                              size: screenWidth * 0.06),
-                        ),
-                        title: Text("Sahitya",
-                            style: TextStyle(
-                                fontSize: screenWidth * 0.06,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'Roboto',
-                                color: CustomColors.clrwhite)),
-                        actions: [
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.08),
-                            child: Row(
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const BookMark(),
-                                        ));
-                                  },
-                                  child: Icon(
-                                    Icons.bookmark,
-                                    color: CustomColors.clrwhite,
-                                    size: screenWidth * 0.06,
+               body:
+
+              //  NotificationListener<ScrollNotification>(
+              //   onNotification: (notification){
+              //   print(widget.verseCount!);
+              //   print(chapterData.length);
+              //   if(widget.verseCount! == chapterData.length)
+              //     return true;
+              //   // if (notification is ScrollEndNotification) {
+              //   //   if (!isLoading) {
+              //   //     //_loadMoreData();
+              //   //     getChapters();
+              //   //   }
+              //   // }
+              //   if (notification.metrics.pixels == notification.metrics.maxScrollExtent)  {
+              //     //getChapters();
+              //     fetchChapters();
+              //   }
+              //   return true;
+              // },
+              //
+              //      child:
+
+
+
+
+
+               NotificationListener<ScrollNotification>(
+                   onNotification: (notification){
+                     print(widget.verseCount!);
+                     print(chapterData.length);
+                     if (notification.metrics.pixels == notification.metrics.maxScrollExtent)  {
+                       if (widget.verseCount! > chapterData.length) {
+                         //fetchChapters();
+                         getChapters();
+                       }
+                     }
+                     return true;
+                   },
+                   child: // Your child widget here
+
+
+
+
+
+                    //
+                    // isLoading || chapterData.isEmpty
+                    //    ? Center(
+                    //      child: Container(height: 150,width: 250,decoration: BoxDecoration(
+                    //                           borderRadius: BorderRadius.circular(15),
+                    //                            color: Colors.grey
+                    //                           // color: Colors.transparent
+                    //                         ),child: Center(child: Column(
+                    //                           crossAxisAlignment: CrossAxisAlignment.center,
+                    //                           mainAxisAlignment: MainAxisAlignment.center,
+                    //                           children: [
+                    //      CircularProgressIndicator(color: Colors.black,backgroundColor: Colors.white,),
+                    //      SizedBox(height: 10,),
+                    //      Text("Please Wait it May Takes Time")
+                    //                           ],
+                    //                         ))),
+                    //    ) :
+                    //
+                    //
+
+
+
+
+                  //child:
+                  //isLoading ||
+                      chapterData.isEmpty
+                   ? Center(
+                 child: Container(
+                   height: 150,
+                   width: 250,
+                   decoration: BoxDecoration(
+                     borderRadius: BorderRadius.circular(15),
+                     color: Colors.grey,
+                   ),
+                   child: Center(
+                     child: Column(
+                       crossAxisAlignment: CrossAxisAlignment.center,
+                       mainAxisAlignment: MainAxisAlignment.center,
+                       children: [
+                         CircularProgressIndicator(
+                           color: Colors.black,
+                           backgroundColor: Colors.white,
+                         ),
+                         SizedBox(height: 10,),
+                         Text("Please Wait it May Takes Time",style: TextStyle(fontWeight: FontWeight.bold),),
+                       ],
+                     ),
+                   ),
+                 ),
+               ) :  // Your data is loaded and ready to be displayed
+                   CustomScrollView(
+                    //controller: _scrollController,
+                      slivers: [
+                        SliverAppBar(
+                          floating: true,
+                          snap: true,
+                          backgroundColor: settingsProvider.isOn
+                              ? CustomColors.clrblack
+                              : CustomColors.clrorange,
+
+                          leading: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              audioManager.stopMusic();
+                              //audioManager.toggleMusicBarVisibility();
+                              //audioManager.resetMusicBarVisibility();
+
+                            },
+                            child: Icon(Icons.arrow_back,
+                                color: CustomColors.clrwhite,
+                                size: screenWidth * 0.06),
+                          ),
+
+
+                         title: Text("Sahitya",
+                              style: TextStyle(
+                                  fontSize: screenWidth * 0.06,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Roboto',
+                                  color: CustomColors.clrwhite)),
+                          actions: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.08),
+                              child: Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const BookMark(),
+                                          ));
+                                    },
+                                    child: Icon(
+                                      Icons.bookmark,
+                                      color: CustomColors.clrwhite,
+                                      size: screenWidth * 0.06,
+                                    ),
                                   ),
-                                ),
-                                SizedBox(
-                                  width: screenWidth * 0.03,
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    _showBottomSheet();
-                                  },
-                                  child: Icon(
-                                    Icons.settings,
-                                    color: CustomColors.clrwhite,
-                                    size: screenWidth * 0.06,
+                                  SizedBox(
+                                    width: screenWidth * 0.03,
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      _showBottomSheet();
+                                    },
+                                    child: Icon(
+                                      Icons.settings,
+                                      color: CustomColors.clrwhite,
+                                      size: screenWidth * 0.06,
+                                    ),
+                                  )
+                                ],
+                              ),
+                            )
+                          ],
+                        ),
+                        SliverAppBar(
+                          backgroundColor: settingsProvider.isOn
+                              ? CustomColors.clrwhite
+                              : CustomColors.clrfavblue,
+                          shadowColor: Colors.black,
+                          toolbarHeight: _showBookFormate
+                              ? screenWidth * 0.13
+                              : screenWidth * 0.2,
+                          automaticallyImplyLeading: false,
+                          pinned: true,
+                          flexibleSpace: _showBookFormate
+                              ? Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(
+                                    "Hanuman Chalisa",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: settingsProvider.isOn
+                                            ? CustomColors.clrblack
+                                            : CustomColors.clrorange),
                                   ),
                                 )
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
-                      SliverAppBar(
-                        backgroundColor: settingsProvider.isOn
-                            ? CustomColors.clrwhite
-                            : CustomColors.clrfavblue,
-                        shadowColor: Colors.black,
-                        toolbarHeight: _showBookFormate
-                            ? screenWidth * 0.13
-                            : screenWidth * 0.2,
-                        automaticallyImplyLeading: false,
-                        pinned: true,
-                        flexibleSpace: _showBookFormate
-                            ? Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Text(
-                                  "Hanuman Chalisa",
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: settingsProvider.isOn
-                                          ? CustomColors.clrblack
-                                          : CustomColors.clrorange),
-                                ),
-                              )
-                            : SizedBox(
-                                width: double.infinity,
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: screenWidth * 0.03),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Container(
-                                        height: 60,
-                                        width: 60,
-                                        decoration: BoxDecoration(
-                                          color: CustomColors.clrwhite,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: settingsProvider.isOn
-                                                ? Colors.orangeAccent
-                                                : CustomColors.clrbrown,
-                                            width: screenWidth * 0.002,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Chapter',
-                                              style: TextStyle(
-                                                  fontSize: screenWidth * 0.03,
-                                                  color: CustomColors.clrblack,
-                                                  fontWeight: FontWeight.bold),
-                                            ),
-                                            Text(
-                                              "${widget.myId}",
-                                              style: TextStyle(
-                                                  fontSize: screenWidth * 0.04,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: CustomColors.clrblack),
-                                            ),
-                                          ],
-                                        ),
-                                        // ),
-                                      ),
-                                      GestureDetector(
-                                        onTap: () {
-                                          showmeDialog(context);
-                                        },
-                                        child: Container(
-                                          width: screenWidth * 0.6,
-                                          height: screenWidth * 0.2,
-                                          decoration: const BoxDecoration(
-                                              image: DecorationImage(
-                                                  image: AssetImage(
-                                                      "assets/image/frame.png"),
-                                                  fit: BoxFit.cover)),
-                                          child: Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: screenWidth * 0.08,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                SizedBox(
-                                                  width: screenWidth * 0.05,
-                                                ),
-                                                SizedBox(
-                                                    width: screenWidth * 0.3,
-                                                    child: Text(
-                                                      '${widget.chapterName}',
-                                                      style: TextStyle(
-                                                          fontSize:
-                                                              screenWidth *
-                                                                  0.04,
-                                                          color: CustomColors
-                                                              .clrblack,
-                                                          overflow: TextOverflow
-                                                              .ellipsis),
-                                                      maxLines: 1,
-                                                    )),
-                                                Icon(
-                                                  Icons.arrow_drop_down,
-                                                  size: screenWidth * 0.05,
-                                                  color: CustomColors.clrblack,
-                                                ),
-                                              ],
+                              : SizedBox(
+                                  width: double.infinity,
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: screenWidth * 0.03),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Container(
+                                          height: 60,
+                                          width: 60,
+                                          decoration: BoxDecoration(
+                                            color: CustomColors.clrwhite,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: settingsProvider.isOn
+                                                  ? Colors.orangeAccent
+                                                  : CustomColors.clrbrown,
+                                              width: screenWidth * 0.002,
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                      Container(
-                                        height: 60,
-                                        width: 60,
-                                        decoration: BoxDecoration(
-                                          color: CustomColors.clrwhite,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: settingsProvider.isOn
-                                                ? Colors.orangeAccent
-                                                : CustomColors.clrbrown,
-                                            width: screenWidth * 0.002,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Verse',
-                                              style: TextStyle(
-                                                  fontSize: screenWidth * 0.03,
-                                                  color: CustomColors.clrblack,
-                                                  fontWeight: FontWeight.bold),
-                                            ),
-                                            Text(
-                                              '${chapterData.length}',
-                                              style: TextStyle(
-                                                  fontSize: screenWidth * 0.04,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: CustomColors.clrblack),
-                                            ),
-                                          ],
-                                        ),
-                                        //  ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Column(
-                          children: [
-                            if (_showBookFormate)
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: screenWidth * 0.03,
-                                    horizontal: screenWidth * 0.05),
-                                child: Text(
-                                  "In Progress",
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontFamily: 'Devanagari',
-                                      color: settingsProvider.isOn
-                                          ? settingsProvider.textColor
-                                          : CustomColors.clrblack),
-                                  textAlign: TextAlign.center,
-                                ),
-                              )
-                            else
-                              ListView.builder(
-                                shrinkWrap: true,
-                                scrollDirection: Axis.vertical,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: chapterData.length,
-                                itemBuilder: (context, index) {
-                                  final verse = chapterData[index];
-                                  final verseData = verse.verseData?.verseData;
-
-                                  String displayedText = '';
-                                  switch (_selectedLang) {
-                                    case 'Hindi':
-                                      displayedText = verseData?.hindi ?? '';
-                                      break;
-                                    case 'Bangla':
-                                      displayedText = verseData?.bangla ?? '';
-                                      break;
-                                    case 'Assamese':
-                                      displayedText = verseData?.assamese ?? '';
-                                      break;
-                                    case 'Gujrati':
-                                      displayedText = verseData?.gujrati ?? '';
-                                      break;
-                                    case 'Marathi':
-                                      displayedText = verseData?.marathi ?? '';
-                                      break;
-                                    case 'Punjabi':
-                                      displayedText = verseData?.punjabi ?? '';
-                                      break;
-                                    case 'Maithili':
-                                      displayedText = verseData?.maithili ?? '';
-                                      break;
-                                    case 'Kannada':
-                                      displayedText = verseData?.kannada ?? '';
-                                      break;
-                                    case 'Malayalam':
-                                      displayedText =
-                                          verseData?.malayalam ?? '';
-                                      break;
-                                    case 'Tamil':
-                                      displayedText = verseData?.tamil ?? '';
-                                      break;
-                                    case 'Telugu':
-                                      displayedText = verseData?.telugu ?? '';
-                                      break;
-                                    default:
-                                      displayedText =
-                                          'Language not supported'; // Default message
-                                      break;
-                                  }
-
-                                  return Column(
-                                    children: [
-                                      Container(
-                                        color: _highlightedIndex == index
-                                            ? Colors.cyanAccent.withOpacity(
-                                                0.2) // Highlight color
-                                            : settingsProvider.isOn
-                                                ? CustomColors.clrblack
-                                                : CustomColors.clrskin,
-                                        child: Padding(
-                                          padding: EdgeInsets.symmetric(
-                                              vertical: screenWidth * 0.04,
-                                              horizontal: screenWidth * 0.03),
                                           child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
-                                              Container(
-                                                decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    border: Border.all(
-                                                        color: settingsProvider
-                                                                .isOn
-                                                            ? CustomColors
-                                                                .clrwhite
-                                                            : CustomColors
-                                                                .clrblack,
-                                                        width: 0.9)),
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.all(8),
-                                                  child: Text(
-                                                    "${chapterData[index].verse}",
-                                                    style: TextStyle(
-                                                        fontSize:
-                                                            screenWidth * 0.04),
-                                                  ),
-                                                ),
+                                              Text(
+                                                'Chapter',
+                                                style: TextStyle(
+                                                    fontSize: screenWidth * 0.03,
+                                                    color: CustomColors.clrblack,
+                                                    fontWeight: FontWeight.bold),
                                               ),
-                                              Consumer<SettingsProvider>(
-                                                builder: (BuildContext context,
-                                                    settingsProvider,
-                                                    Widget? child) {
-                                                  return Text(
-                                                    "${chapterData[index].verseData?.verseData?.sanskrit}",
-                                                    textAlign: TextAlign.center,
-                                                    style: TextStyle(
-                                                        fontSize:
-                                                            settingsProvider
-                                                                .fontSize,
-                                                        color: settingsProvider
-                                                                .isOn
-                                                            ? settingsProvider
-                                                                .textColor
-                                                            : CustomColors
-                                                                .clrblack,
-                                                        fontFamily:
-                                                            settingsProvider
-                                                                .selectedFont),
-                                                  );
-                                                },
+                                              Text(
+                                                "${widget.myId}",
+                                                style: TextStyle(
+                                                    fontSize: screenWidth * 0.04,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: CustomColors.clrblack),
                                               ),
-                                              Padding(
-                                                  padding: EdgeInsets.symmetric(
-                                                      horizontal:
-                                                          screenWidth * 0.05,
-                                                      vertical:
-                                                          screenWidth * 0.05),
-                                                  child: Row(
-                                                    children: [
-                                                      GestureDetector(
-                                                          onTap: () {
-                                                            Navigator.push(
-                                                                context,
-                                                                DialogRoute(
-                                                                  context:
-                                                                      context,
-                                                                  builder:
-                                                                      (context) =>
-                                                                          ShareScreen(
-                                                                    gitaShlok: chapterData[index]
-                                                                            .verseData
-                                                                            ?.verseData!
-                                                                            .sanskrit ??
-                                                                        '',
-                                                                    shlokMeaning: chapterData[index]
-                                                                            .verseData
-                                                                            ?.verseData!
-                                                                            .hindi ??
-                                                                        '',
-                                                                    detailsModel:
-                                                                        chapterData[
-                                                                            index],
-                                                                    chapterName:
-                                                                        widget
-                                                                            .chapterHindiName,
-                                                                    verseSerial:
-                                                                        chapterData[index]
-                                                                            .verse,
-                                                                  ),
-                                                                ));
-                                                          },
-                                                          child: Icon(
-                                                            Icons
-                                                                .share_outlined,
-                                                            color: settingsProvider
-                                                                    .isOn
-                                                                ? CustomColors
-                                                                    .clrwhite
-                                                                : CustomColors
-                                                                    .clrbrown,
-                                                            size: screenWidth *
-                                                                0.07,
-                                                          )),
-                                                      SizedBox(
-                                                        width:
-                                                            screenWidth * 0.03,
-                                                      ),
-                                                      Consumer<
-                                                          BookmarkProvider>(
-                                                        builder: (BuildContext
-                                                                context,
-                                                            bookmarkProvider,
-                                                            Widget? child) {
-                                                          final isBookmarked = bookmarkProvider
-                                                              .bookMarkedShlokes
-                                                              .any((bookmarked) =>
-                                                                  bookmarked
-                                                                      .verseData
-                                                                      ?.audioUrl ==
-                                                                  chapterData[
-                                                                          index]
-                                                                      .verseData
-                                                                      ?.audioUrl);
-
-                                                          return GestureDetector(
-                                                            onTap: () {
-                                                              bookmarkProvider
-                                                                  .toggleBookmark(
-                                                                      chapterData[
-                                                                          index]);
-                                                            },
-                                                            child: Icon(
-                                                              isBookmarked
-                                                                  ? Icons
-                                                                      .bookmark
-                                                                  : Icons
-                                                                      .bookmark_border,
-                                                              color: settingsProvider
-                                                                      .isOn
-                                                                  ? CustomColors
-                                                                      .clrwhite
-                                                                  : CustomColors
-                                                                      .clrbrown,
-                                                              size:
-                                                                  screenWidth *
-                                                                      0.07,
-                                                            ),
-                                                          );
-                                                        },
-                                                      ),
-                                                      Padding(
-                                                        padding: EdgeInsets
-                                                            .symmetric(
-                                                                horizontal:
-                                                                    screenHeight *
-                                                                        0.08),
-                                                        child: Consumer<
-                                                            AudioPlayerManager>(
-                                                          builder: (BuildContext
-                                                                  context,
-                                                              audioManager,
-                                                              Widget? child) {
-                                                            return GestureDetector(
-                                                                onTap: () {
-                                                                  _showTranslationBottomSheet(
-                                                                      context,
-                                                                      chapterData[index]
-                                                                              .hiDescription ??
-                                                                          '',
-                                                                      index,
-                                                                      chapterData[index]
-                                                                              .description ??
-                                                                          '',
-                                                                      widget.chapterImage ??
-                                                                          '');
-                                                                },
-                                                                child: Text(
-                                                                  "भावार्थ",
-                                                                  style: TextStyle(
-                                                                      color: Colors
-                                                                          .red,
-                                                                      fontSize:
-                                                                          screenWidth *
-                                                                              0.05),
-                                                                ));
-                                                          },
-                                                        ),
-                                                      ),
-                                                      const Spacer(),
-                                                      Consumer<
-                                                          AudioPlayerManager>(
-                                                        builder: (BuildContext
-                                                                context,
-                                                            audioController,
-                                                            Widget? child) {
-                                                          bool
-                                                              isCurrentSongPlaying =
-                                                              audioController
-                                                                      .isPlaying &&
-                                                                  audioController
-                                                                          .currentMusic ==
-                                                                      chapterData[
-                                                                          index];
-
-                                                          return IconButton(
-                                                            onPressed: () {
-                                                              if (isCurrentSongPlaying) {
-                                                                // Pause the current song
-                                                                audioController
-                                                                    .togglePlayPause();
-                                                              } else {
-                                                                if (audioController
-                                                                        .currentMusic ==
-                                                                    chapterData[
-                                                                        index]) {
-                                                                  // Resume the current song
-                                                                  audioController
-                                                                      .togglePlayPause();
-                                                                } else {
-                                                                  // Play the selected song
-                                                                  audioController
-                                                                      .playMusic(
-                                                                          chapterData[
-                                                                              index]);
-
-                                                                  print(
-                                                                      "Song clicked and played");
-                                                                }
-                                                              }
-
-                                                              // Debugging: Print current state for verification
-                                                              print(
-                                                                  'isPlaying: ${audioController.isPlaying}');
-                                                              print(
-                                                                  'currentMusic: ${audioController.currentMusic}');
-                                                            },
-                                                            icon: Icon(
-                                                              // Determine icon based on the state of the current song
-                                                              isCurrentSongPlaying
-                                                                  ? Icons
-                                                                      .pause_circle
-                                                                  : Icons
-                                                                      .play_circle,
-                                                              size:
-                                                                  screenWidth *
-                                                                      0.1,
-                                                              color: settingsProvider
-                                                                      .isOn
-                                                                  ? CustomColors
-                                                                      .clrwhite
-                                                                  : CustomColors
-                                                                      .clrbrown,
-                                                            ),
-                                                          );
-                                                        },
-                                                      )
-                                                    ],
-                                                  )
-                                                  //   },
-                                                  // )
-                                                  ),
                                             ],
                                           ),
+                                          // ),
                                         ),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: screenWidth * 0.02,
-                                            vertical: screenWidth * 0.002),
-                                        child: Consumer<SettingsProvider>(
-                                          builder: (BuildContext context,
-                                              settingsProvider, Widget? child) {
+                                        GestureDetector(
+                                          onTap: () {
+                                            showmeDialog(context);
+                                          },
+                                          child: Container(
+                                            width: screenWidth * 0.6,
+                                            height: screenWidth * 0.2,
+                                            decoration: const BoxDecoration(
+                                                image: DecorationImage(
+                                                    image: AssetImage(
+                                                        "assets/image/frame.png"),
+                                                    fit: BoxFit.cover)),
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: screenWidth * 0.08,
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: screenWidth * 0.05,
+                                                  ),
+                                                  SizedBox(
+                                                      width: screenWidth * 0.3,
+                                                      child: Text(
+                                                        '${widget.chapterName}',
+                                                        style: TextStyle(
+                                                            fontSize:
+                                                                screenWidth *
+                                                                    0.04,
+                                                            color: CustomColors
+                                                                .clrblack,
+                                                            overflow: TextOverflow
+                                                                .ellipsis),
+                                                        maxLines: 1,
+                                                      )),
+                                                  Icon(
+                                                    Icons.arrow_drop_down,
+                                                    size: screenWidth * 0.05,
+                                                    color: CustomColors.clrblack,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          height: 60,
+                                          width: 60,
+                                          decoration: BoxDecoration(
+                                            color: CustomColors.clrwhite,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: settingsProvider.isOn
+                                                  ? Colors.orangeAccent
+                                                  : CustomColors.clrbrown,
+                                              width: screenWidth * 0.002,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'Verse',
+                                                style: TextStyle(
+                                                    fontSize: screenWidth * 0.03,
+                                                    color: CustomColors.clrblack,
+                                                    fontWeight: FontWeight.bold),
+                                              ),
+                                              Text(
+                                                '${widget.verseCount}',
+                                                style: TextStyle(
+                                                    fontSize: screenWidth * 0.04,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: CustomColors.clrblack),
+                                              ),
+                                            ],
+                                          ),
+                                          //  ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Column(
+                            children: [
+                              if (_showBookFormate)
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: screenWidth * 0.03,
+                                      horizontal: screenWidth * 0.05),
+                                  child: Text(
+                                    "In Progress",
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontFamily: 'Devanagari',
+                                        color: settingsProvider.isOn
+                                            ? settingsProvider.textColor
+                                            : CustomColors.clrblack),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                )
+                              else
+                                ListView.builder(
+                                    shrinkWrap: true,
+                                    controller: _scrollController,
+                                    scrollDirection: Axis.vertical,
+                                  // physics: AlwaysScrollableScrollPhysics(),
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    //itemCount: chapterData.length,
+                                     itemCount: chapterData.length + (isLoading ? 1 : 0),
+                                    itemBuilder: (context, index) {
+
+                                      if (index < chapterData.length){
+
+
+                                        final verse = chapterData[index];
+                                       final verseData = verse.verseData?.verseData;
+
+                                        String displayedText = '';
+                                        switch (_selectedLang) {
+                                          case 'Hindi':
+                                            displayedText = verseData?.hindi ?? '';
+                                            break;
+                                          case 'Bangla':
+                                            displayedText = verseData?.bangla ?? '';
+                                            break;
+                                          case 'Assamese':
+                                            displayedText = verseData?.assamese ?? '';
+                                            break;
+                                          case 'Gujrati':
+                                            displayedText = verseData?.gujrati ?? '';
+                                            break;
+                                          case 'Marathi':
+                                            displayedText = verseData?.marathi ?? '';
+                                            break;
+                                          case 'Punjabi':
+                                            displayedText = verseData?.punjabi ?? '';
+                                            break;
+                                          case 'Maithili':
+                                            displayedText = verseData?.maithili ?? '';
+                                            break;
+                                          case 'Kannada':
+                                            displayedText = verseData?.kannada ?? '';
+                                            break;
+                                          case 'Malayalam':
+                                            displayedText =
+                                                verseData?.malayalam ?? '';
+                                            break;
+                                          case 'Tamil':
+                                            displayedText = verseData?.tamil ?? '';
+                                            break;
+                                          case 'Telugu':
+                                            displayedText = verseData?.telugu ?? '';
+                                            break;
+                                          default:
+                                            displayedText =
+                                            'Language not supported'; // Default message
+                                            break;
+                                        }
+
+                                        return Consumer<SettingsProvider>(
+                                          builder: (BuildContext context, SettingProvider, Widget? child) {
                                             return Column(
                                               children: [
-                                                Visibility(
-                                                  visible: settingsProvider
-                                                      .showHindiText,
-                                                  child: Column(
-                                                    children: [
-                                                      Text(
-                                                        displayedText,
-                                                        // "${settingsProvider.displayedText}",
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                        style: TextStyle(
-                                                            fontSize:
-                                                                settingsProvider
-                                                                    .fontSize,
-                                                            fontWeight:
-                                                                FontWeight.w400,
-                                                            fontFamily:
-                                                                'Roboto',
-                                                            color: Colors.blue),
-                                                      ),
-                                                      Container(
-                                                        height:
-                                                            screenWidth * 0.03,
-                                                      )
-                                                    ],
+                                                Container(
+                                                  color: _highlightedIndex == index
+                                                      ? Colors.cyanAccent.withOpacity(
+                                                      0.2) // Highlight color
+                                                      : SettingProvider.isOn
+                                                      ? CustomColors.clrblack
+                                                      : CustomColors.clrskin,
+                                                  child: Padding(
+                                                    padding: EdgeInsets.symmetric(
+                                                        vertical: screenWidth * 0.04,
+                                                        horizontal: screenWidth * 0.03),
+                                                    child: Consumer<SettingsProvider>(
+                                                      builder: (BuildContext context, SettingProvider, Widget? child) {
+                                                        return  Column(
+                                                          children: [
+                                                            Container(
+                                                              decoration: BoxDecoration(
+                                                                  shape: BoxShape.circle,
+                                                                  border: Border.all(
+                                                                      color: SettingProvider
+                                                                          .isOn
+                                                                          ? CustomColors
+                                                                          .clrwhite
+                                                                          : CustomColors
+                                                                          .clrblack,
+                                                                      width: 0.9)),
+                                                              child: Padding(
+                                                                padding:
+                                                                const EdgeInsets.all(8),
+                                                                child: Text(
+                                                                  "${chapterData[index].verse}",
+                                                                  style: TextStyle(
+                                                                      fontSize:
+                                                                      screenWidth * 0.04,
+                                                                  color: SettingProvider
+                                                                      .isOn
+                                                                      ? CustomColors
+                                                                      .clrwhite
+                                                                      : CustomColors
+                                                                      .clrblack,),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            Consumer<SettingsProvider>(
+                                                              builder: (BuildContext context,
+                                                                  settingProvider,
+                                                                  Widget? child) {
+                                                                return
+                                                                  Text(
+                                                                    "${chapterData[index].verseData!.verseData!.sanskrit}",
+                                                                    textAlign: TextAlign.center,
+                                                                    style: TextStyle(
+                                                                        fontSize:
+                                                                        settingProvider
+                                                                            .fontSize,
+                                                                        color: settingProvider
+                                                                            .isOn
+                                                                            ? settingProvider
+                                                                            .textColor
+                                                                            : CustomColors
+                                                                            .clrblack,
+                                                                        fontFamily:
+                                                                        settingProvider
+                                                                            .selectedFont),
+                                                                  );
+                                                              },
+                                                            ),
+                                                            Padding(
+                                                                padding: EdgeInsets.symmetric(
+                                                                    horizontal:
+                                                                    screenWidth * 0.05,
+                                                                    vertical:
+                                                                    screenWidth * 0.05),
+                                                                child: Row(
+                                                                  children: [
+                                                                    GestureDetector(
+                                                                        onTap: () {
+                                                                          Navigator.push(
+                                                                              context,
+                                                                              DialogRoute(
+                                                                                context:
+                                                                                context,
+                                                                                builder:
+                                                                                    (context) =>
+                                                                                    ShareScreen(
+                                                                                      gitaShlok: chapterData[index].
+                                                                                           verseData
+                                                                                          ?.verseData!
+                                                                                          .sanskrit ??
+                                                                                          '',
+                                                                                      shlokMeaning: chapterData[index]
+                                                                                          .verseData
+                                                                                          ?.verseData!
+                                                                                          .hindi ??
+                                                                                          '',
+                                                                                      detailsModel: chapterData[index],chapterName:widget.chapterHindiName, verseSerial: chapterData[index].verse,
+                                                                                    ),
+                                                                              ));
+                                                                        },
+                                                                        child: Icon(
+                                                                          Icons
+                                                                              .share_outlined,
+                                                                          color: SettingProvider
+                                                                              .isOn
+                                                                              ? CustomColors
+                                                                              .clrwhite
+                                                                              : CustomColors
+                                                                              .clrbrown,
+                                                                          size: screenWidth *
+                                                                              0.07,
+                                                                        )),
+                                                                    SizedBox(
+                                                                      width:
+                                                                      screenWidth * 0.03,
+                                                                    ),
+                                                                    Consumer<
+                                                                        BookmarkProvider>(
+                                                                      builder: (BuildContext
+                                                                      context,
+                                                                          bookmarkProvider,
+                                                                          Widget? child) {
+                                                                        final isBookmarked = bookmarkProvider
+                                                                            .bookMarkedShlokes
+                                                                            .any((bookmarked) =>
+                                                                        bookmarked!.verseData
+                                                                            ?.audioUrl ==
+                                                                            chapterData[
+                                                                            index]
+                                                                                .verseData
+                                                                                ?.audioUrl);
+
+                                                                        return GestureDetector(
+                                                                          onTap: () {
+                                                                            bookmarkProvider
+                                                                                .toggleBookmark(
+                                                                                chapterData[
+                                                                                index]);
+                                                                          },
+                                                                          child: Icon(
+                                                                            isBookmarked
+                                                                                ? Icons
+                                                                                .bookmark
+                                                                                : Icons
+                                                                                .bookmark_border,
+                                                                            color: SettingProvider
+                                                                                .isOn
+                                                                                ? CustomColors
+                                                                                .clrwhite
+                                                                                : CustomColors
+                                                                                .clrbrown,
+                                                                            size:
+                                                                            screenWidth *
+                                                                                0.07,
+                                                                          ),
+                                                                        );
+                                                                      },
+                                                                    ),
+                                                                    Padding(
+                                                                      padding: EdgeInsets
+                                                                          .symmetric(
+                                                                          horizontal:
+                                                                          screenHeight *
+                                                                              0.08),
+                                                                      child: Consumer<
+                                                                          AudioPlayerManager>(
+                                                                        builder: (BuildContext
+                                                                        context,
+                                                                            audioManager,
+                                                                            Widget? child) {
+                                                                          return GestureDetector(
+                                                                              onTap: () {
+                                                                                _showTranslationBottomSheet(
+                                                                                    context,
+                                                                                    chapterData[index]
+                                                                                        .hiDescription ??
+                                                                                        '',
+                                                                                    index,
+                                                                                    chapterData[index]
+                                                                                        .description ??
+                                                                                        '',
+                                                                                    chapterData[index].verseImage ??
+                                                                                        '');
+                                                                              },
+                                                                              child: Text(
+                                                                                "भावार्थ",
+                                                                                style: TextStyle(
+                                                                                    color: Colors
+                                                                                        .red,
+                                                                                    fontSize:
+                                                                                    screenWidth *
+                                                                                        0.05),
+                                                                              ));
+                                                                        },
+                                                                      ),
+                                                                    ),
+                                                                    const Spacer(),
+
+                                                                    Consumer<AudioPlayerManager>(
+                                                                      builder: (BuildContext
+                                                                      context,
+                                                                          audioController,
+                                                                          Widget? child) {
+                                                                        bool
+                                                                        isCurrentSongPlaying =
+                                                                            audioController
+                                                                                .isPlaying &&
+                                                                                audioController
+                                                                                    .currentMusic ==
+                                                                                    chapterData[
+                                                                                    index];
+
+                                                                        return IconButton(
+                                                                          onPressed: () {
+                                                                            if (isCurrentSongPlaying) {
+                                                                              // Pause the current song
+                                                                              audioController
+                                                                                  .togglePlayPause();
+                                                                            } else {
+                                                                              if (audioController
+                                                                                  .currentMusic ==
+                                                                                  chapterData[
+                                                                                  index]) {
+                                                                                // Resume the current song
+                                                                                audioController
+                                                                                    .togglePlayPause();
+                                                                              } else {
+                                                                                // Play the selected song
+                                                                                audioController
+                                                                                    .playMusic(
+                                                                                    chapterData[
+                                                                                    index]);
+
+                                                                                print(
+                                                                                    "Song clicked and played");
+                                                                              }
+                                                                            }
+
+                                                                            // Debugging: Print current state for verification
+                                                                            print(
+                                                                                'isPlaying: ${audioController.isPlaying}');
+                                                                            print(
+                                                                                'currentMusic: ${audioController.currentMusic}');
+                                                                          },
+                                                                          icon: Icon(
+                                                                            // Determine icon based on the state of the current song
+                                                                            isCurrentSongPlaying
+                                                                                ? Icons
+                                                                                .pause_circle
+                                                                                : Icons
+                                                                                .play_circle,
+                                                                            size:
+                                                                            screenWidth *
+                                                                                0.1,
+                                                                            color: SettingProvider
+                                                                                .isOn
+                                                                                ? CustomColors
+                                                                                .clrwhite
+                                                                                : CustomColors
+                                                                                .clrbrown,
+                                                                          ),
+                                                                        );
+                                                                      },
+                                                                    )
+
+
+
+
+                                                                  ],
+                                                                )
+                                                              //   },
+                                                              // )
+                                                            ),
+                                                          ],
+                                                        );
+                                                      },
+                                                    ),
                                                   ),
                                                 ),
-                                                Visibility(
-                                                  visible: settingsProvider
-                                                      .showEnglishText,
-                                                  child: Column(
-                                                    children: [
-                                                      Text(
-                                                        chapterData[index]
-                                                                .verseData!
-                                                                .verseData
-                                                                ?.english ??
-                                                            '',
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                        style: TextStyle(
-                                                            fontSize:
-                                                                settingsProvider
-                                                                    .fontSize,
-                                                            fontWeight:
-                                                                FontWeight.w400,
-                                                            fontFamily:
-                                                                'Roboto'),
-                                                      ),
-                                                      Divider(
-                                                        color:
-                                                            settingsProvider
-                                                                    .isOn
-                                                                ? CustomColors
-                                                                    .clrorange
-                                                                : CustomColors
-                                                                    .clrblack,
-                                                      )
-                                                    ],
+                                                Padding(
+                                                  padding: EdgeInsets.symmetric(
+                                                      horizontal: screenWidth * 0.02,
+                                                      vertical: screenWidth * 0.002),
+                                                  child:
+                                                  Consumer<SettingsProvider>(
+                                                    builder: (BuildContext context,
+                                                        settingProvider, Widget? child) {
+                                                      return
+                                                        Column(
+                                                          children: [
+                                                            Visibility(
+                                                              visible: settingProvider
+                                                                  .showHindiText,
+                                                              child: Column(
+                                                                children: [
+                                                                  Text(
+                                                                    displayedText,
+                                                                    // "${settingsProvider.displayedText}",
+                                                                    textAlign:
+                                                                    TextAlign.center,
+                                                                    style: TextStyle(
+                                                                        fontSize:
+                                                                        settingProvider
+                                                                            .fontSize,
+                                                                        fontWeight:
+                                                                        FontWeight.w400,
+                                                                        fontFamily:
+                                                                        'Roboto',
+                                                                        color: Colors.blue),
+                                                                  ),
+                                                                  Container(
+                                                                    height:
+                                                                    screenWidth * 0.03,
+                                                                  )
+                                                                ],
+                                                              ),
+                                                            ),
+                                                            Visibility(
+                                                              visible: settingProvider
+                                                                  .showEnglishText,
+                                                              child: Column(
+                                                                children: [
+                                                                  Text(
+                                                                    chapterData[index]
+                                                                        .verseData!
+                                                                        .verseData
+                                                                        ?.english ??
+                                                                        '',
+                                                                    textAlign:
+                                                                    TextAlign.center,
+                                                                    style: TextStyle(
+                                                                        fontSize:
+                                                                        settingProvider
+                                                                            .fontSize,
+                                                                        fontWeight:
+                                                                        FontWeight.w400,
+                                                                        fontFamily:
+                                                                        'Roboto'),
+                                                                  ),
+                                                                  Divider(
+                                                                    color:
+                                                                    settingProvider
+                                                                        .isOn
+                                                                        ? CustomColors
+                                                                        .clrorange
+                                                                        : CustomColors
+                                                                        .clrblack,
+                                                                  )
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        );
+                                                    },
                                                   ),
                                                 ),
                                               ],
                                             );
                                           },
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                  //   },
-                                  // );
-                                },
-                              )
-                          ],
+                                        );
+
+
+
+                                      }else {
+                                        return Container(
+                                          alignment: Alignment.center,
+                                          width: double.infinity,
+                                         color: Colors.red.withOpacity(0.5),
+                                          padding: EdgeInsets.symmetric(vertical: 3, horizontal: 5),
+                                          child: Text('Please Wait', style: TextStyle(color: Colors.white),),
+                                        );
+                                      }
+                                    },
+                                  ),
+                               // )
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-               bottomNavigationBar: Consumer<AudioPlayerManager>(
-               builder: (context, musicManager, child) {
-                if (musicManager.isMusicBarVisible) {
-                  return MusicBar(chapterHindiName: widget.chapterHindiName,verseSerial: chapterData[0].verse,chapterNumber: widget.myId,);
-                } else {
-                  return const SizedBox.shrink();
-                }
-              },
-            ),
-          )),
-        );
+                      ],
+                    ),
+               // ),
+
+          ),
+
+
+                //
+                // bottomNavigationBar: Consumer<AudioPlayerManager>(
+                //   builder: (context, musicManager, child) {
+                //     if (audioManager.isMusicBarVisible && chapterData.isNotEmpty) {
+                //       return MusicBar(
+                //         chapterHindiName: widget.chapterHindiName,
+                //         verseSerial: chapterData[0].verse,
+                //         chapterNumber: widget.myId,
+                //       );
+                //     } else {
+                //       return const SizedBox.shrink();
+                //     }
+                //   },
+                // ),
+
+
+                bottomNavigationBar: Consumer<AudioPlayerManager>(
+                  builder: (context, musicManager, child) {
+                    if (audioManager.isMusicBarVisible){
+                      return MusicBar(chapterHindiName: widget.chapterHindiName,verseSerial: chapterData[0].verse,chapterNumber: widget.myId,);
+                    } else {
+                      return const SizedBox.shrink();
+                    }
+                  },
+                ),
+
+              ),
+        ));
       },
     );
   }

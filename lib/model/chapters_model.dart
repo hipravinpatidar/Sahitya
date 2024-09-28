@@ -1,200 +1,149 @@
 // To parse this JSON data, do
 //
-//     final chaptersModel = chaptersModelFromJson(jsonString);
+//     final chaptersGita = chaptersGitaFromJson(jsonString);
 
 import 'dart:convert';
 
-ChaptersModel chaptersModelFromJson(String str) => ChaptersModel.fromJson(json.decode(str));
+ChaptersGita chaptersGitaFromJson(String str) => ChaptersGita.fromJson(json.decode(str));
 
-String chaptersModelToJson(ChaptersModel data) => json.encode(data.toJson());
+String chaptersGitaToJson(ChaptersGita data) => json.encode(data.toJson());
 
-class ChaptersModel {
-  int? status;
-  List<Chapters>? data;
+class ChaptersGita {
+  int status;
+  List<MyChapters> data;
 
-  ChaptersModel({
+  ChaptersGita({
     required this.status,
     required this.data,
   });
 
-  factory ChaptersModel.fromJson(Map<String, dynamic> json) => ChaptersModel(
-    status: json["status"] ?? 0, // default to 0 if "status" is null
-    data: json["data"] != null
-        ? List<Chapters>.from(json["data"].map((x) => Chapters.fromJson(x)))
-        : [], // default to empty list if "data" is null
+  factory ChaptersGita.fromJson(Map<String, dynamic> json) => ChaptersGita(
+    status: json["status"],
+    data: List<MyChapters>.from(json["data"].map((x) => MyChapters.fromJson(x))),
   );
 
   Map<String, dynamic> toJson() => {
     "status": status,
-    "data": data?.map((x) => x.toJson()),
+    "data": List<dynamic>.from(data.map((x) => x.toJson())),
   };
 }
 
-class Chapters {
-  int? chapter;
-  String? chapterName;
-  String? hiChapterName;
-  String? chapterImage;
-  List<Verse>? verses;
+class MyChapters {
+  int id;
+  String name;
+  String image;
+  String status;
+  DateTime createdAt;
+  DateTime updatedAt;
+  int verseCount;
+  String hiName;
+  List<Translation> translations;
 
-  Chapters({
-    required this.chapter,
-    required this.chapterName,
-    required this.hiChapterName,
-    required this.chapterImage,
-    required this.verses,
+  MyChapters({
+    required this.id,
+    required this.name,
+    required this.image,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.verseCount,
+    required this.hiName,
+    required this.translations,
   });
 
-  factory Chapters.fromJson(Map<String, dynamic> json) => Chapters(
-    chapter: json["chapter"] ?? 0, // default to 0 if "chapter" is null
-    chapterName: json["chapter_name"] ?? "", // default to empty string if "chapter_name" is null
-    hiChapterName: json["hi_chapter_name"] ?? "", // default to empty string if "hi_chapter_name" is null
-    chapterImage: json["chapter_image"] ?? "", // default to empty string if "chapter_image" is null
-    verses: json["verses"] != null
-        ? List<Verse>.from(json["verses"].map((x) => Verse.fromJson(x)))
-        : [], // default to empty list if "verses" is null
+  factory MyChapters.fromJson(Map<String, dynamic> json) => MyChapters(
+    id: json["id"],
+    name: json["name"],
+    image: json["image"],
+    status: json["status"],
+    createdAt: DateTime.parse(json["created_at"]),
+    updatedAt: DateTime.parse(json["updated_at"]),
+    verseCount: json["verse_count"],
+    hiName: json["hi_name"],
+    translations: List<Translation>.from(json["translations"].map((x) => Translation.fromJson(x))),
   );
 
   Map<String, dynamic> toJson() => {
-    "chapter": chapter,
-    "chapter_name": chapterName,
-    "hi_chapter_name": hiChapterName,
-    "chapter_image": chapterImage,
-    "verses": verses?.map((x) => x.toJson()),
+    "id": id,
+    "name": name,
+    "image": image,
+    "status": status,
+    "created_at": createdAt.toIso8601String(),
+    "updated_at": updatedAt.toIso8601String(),
+    "verse_count": verseCount,
+    "hi_name": hiName,
+    "translations": List<dynamic>.from(translations.map((x) => x.toJson())),
   };
 }
 
-class Verse {
-  int? verse;
-  String? description;
-  String? hiDescription;
-  String? verseImage;
-  VerseData? verseData;
+class Translation {
+  TranslationableType translationableType;
+  int translationableId;
+  Locale locale;
+  Key key;
+  String value;
+  int id;
 
-  Verse({
-    required this.verse,
-    required this.description,
-    required this.hiDescription,
-    required this.verseImage,
-    required this.verseData,
+  Translation({
+    required this.translationableType,
+    required this.translationableId,
+    required this.locale,
+    required this.key,
+    required this.value,
+    required this.id,
   });
 
-  factory Verse.fromJson(Map<String, dynamic> json) => Verse(
-    verse: json["verse"] ?? 0, // default to 0 if "verse" is null
-    description: json["description"] ?? "", // default to empty string if "description" is null
-    hiDescription: json["hi_description"] ?? "", // default to empty string if "hi_description" is null
-    verseImage: json["verse_image"] ?? "", // default to empty string if "verse_image" is null
-    verseData: json["verse_data"] != null ? VerseData.fromJson(json["verse_data"]) : null, // default to null if "verse_data" is null
+  factory Translation.fromJson(Map<String, dynamic> json) => Translation(
+    translationableType: translationableTypeValues.map[json["translationable_type"]]!,
+    translationableId: json["translationable_id"],
+    locale: localeValues.map[json["locale"]]!,
+    key: keyValues.map[json["key"]]!,
+    value: json["value"],
+    id: json["id"],
   );
 
   Map<String, dynamic> toJson() => {
-    "verse": verse,
-    "description": description,
-    "hi_description": hiDescription,
-    "verse_image": verseImage,
-    "verse_data": verseData?.toJson(),
+    "translationable_type": translationableTypeValues.reverse[translationableType],
+    "translationable_id": translationableId,
+    "locale": localeValues.reverse[locale],
+    "key": keyValues.reverse[key],
+    "value": value,
+    "id": id,
   };
 }
 
-class VerseData {
-  VerseDataClass? verseData;
-  String? audioUrl;
-  String? message;
-
-  VerseData({
-    this.verseData,
-    this.audioUrl,
-    this.message,
-  });
-
-  factory VerseData.fromJson(Map<String, dynamic> json) => VerseData(
-    verseData: json["verseData"] != null ? VerseDataClass.fromJson(json["verseData"]) : null, // default to null if "verseData" is null
-    audioUrl: json["audioUrl"] ?? "", // default to empty string if "audioUrl" is null
-    message: json["message"] ?? "", // default to empty string if "message" is null
-  );
-
-  Map<String, dynamic> toJson() => {
-    "verseData": verseData?.toJson(),
-    "audioUrl": audioUrl,
-    "message": message,
-  };
+enum Key {
+  NAME
 }
 
-class VerseDataClass {
-  String? sanskrit;
-  String? hindi;
-  String? english;
-  String? bangla;
-  String? assamese;
-  String? gujrati;
-  String? marathi;
-  String? punjabi;
-  String? maithili;
-  String? kannada;
-  String? malayalam;
-  String? tamil;
-  String? telugu;
+final keyValues = EnumValues({
+  "name": Key.NAME
+});
 
-  VerseDataClass({
-    this.sanskrit,
-    this.hindi,
-    this.english,
-    this.bangla,
-    this.assamese,
-    this.gujrati,
-    this.marathi,
-    this.punjabi,
-    this.maithili,
-    this.kannada,
-    this.malayalam,
-    this.tamil,
-    this.telugu,
-  });
+enum Locale {
+  IN
+}
 
-  factory VerseDataClass.fromJson(Map<String, dynamic> json) =>
-      VerseDataClass(
-        sanskrit: json["sanskrit"] ?? "",
-        // default to empty string if "sanskrit" is null
-        hindi: json["hindi"] ?? "",
-        // default to empty string if "hindi" is null
-        english: json["english"] ?? "",
-        // default to empty string if "english" is null
-        bangla: json["bangla"] ?? "",
-        // default to empty string if "bangla" is null
-        assamese: json["assamese"] ?? "",
-        // default to empty string if "assamese" is null
-        gujrati: json["gujrati"] ?? "",
-        // default to empty string if "gujrati" is null
-        marathi: json["marathi"] ?? "",
-        // default to empty string if "marathi" is null
-        punjabi: json["punjabi"] ?? "",
-        // default to empty string if "punjabi" is null
-        maithili: json["maithili"] ?? "",
-        // default to empty string if "maithili" is null
-        kannada: json["kannada"] ?? "",
-        // default to empty string if "kannada" is null
-        malayalam: json["malayalam"] ?? "",
-        // default to empty string if "malayalam" is null
-        tamil: json["tamil"] ?? "",
-        // default to empty string if "tamil" is null
-        telugu: json["telugu"] ??
-            "", // default to empty string if "telugu" is null
-      );
+final localeValues = EnumValues({
+  "in": Locale.IN
+});
 
-  Map<String, dynamic> toJson() =>
-      {
-        "sanskrit": sanskrit,
-        "hindi": hindi,
-        "english": english,
-        "bangla": bangla,
-        "assamese": assamese,
-        "gujrati": gujrati,
-        "marathi": marathi,
-        "punjabi": punjabi,
-        "maithili": maithili,
-        "kannada": kannada,
-        "malayalam": malayalam,
-        "tamil": tamil,
-        "telugu": telugu,
-      };
+enum TranslationableType {
+  APP_MODELS_BHAGAVAD_GITA_CHAPTER
+}
+
+final translationableTypeValues = EnumValues({
+  "App\\Models\\BhagavadGitaChapter": TranslationableType.APP_MODELS_BHAGAVAD_GITA_CHAPTER
+});
+
+class EnumValues<T> {
+  Map<String, T> map;
+  late Map<T, String> reverseMap;
+
+  EnumValues(this.map);
+
+  Map<T, String> get reverse {
+    reverseMap = map.map((k, v) => MapEntry(v, k));
+    return reverseMap;
+  }
 }

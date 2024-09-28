@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sahityadesign/view/gita_chapter/gita_chapter.dart';
+import 'package:sahityadesign/view/gitastatic.dart';
 
 import '../../ui_helpers/custom_colors.dart';
 
@@ -38,7 +39,7 @@ class _SahityaListState extends State<SahityaList> {
 
                 switch(index){
 
-                     case 0: Navigator.push(context, MaterialPageRoute(builder: (context) => GeetaChapter(),));
+                     case 0: Navigator.push(context, MaterialPageRoute(builder: (context) => GitaStatic(isToast: false,),));
 
                 //   case 1: Navigator.push(context, MaterialPageRoute(builder: (context) => Videomovies(),));
                 //

@@ -6,6 +6,8 @@ import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../model/shlokModel.dart';
+
 class ShareVerse extends ChangeNotifier {
   final ScreenshotController screenshotController = ScreenshotController();
 

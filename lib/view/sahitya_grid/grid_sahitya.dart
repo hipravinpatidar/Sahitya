@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sahityadesign/view/gita_chapter/gita_chapter.dart';
+import 'package:sahityadesign/view/gitastatic.dart';
 import '../../ui_helpers/custom_colors.dart';
 
 class GridSahitya extends StatefulWidget {
@@ -34,7 +35,8 @@ class _GridSahityaState extends State<GridSahitya>{
                 padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02,vertical: screenWidth * 0.02),
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => GeetaChapter(),));
+                   // Navigator.push(context, MaterialPageRoute(builder: (context) => GeetaChapter(),));
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => GitaStatic(isToast: false,),));
                   },
                   child: Container(
                     decoration: BoxDecoration(

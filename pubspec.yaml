@@ -44,6 +44,10 @@ dependencies:
   just_audio: ^0.9.37
   sqflite: ^2.3.3+1
   screenshot: ^2.5.0
+  connectivity_plus: ^6.0.5
+  path_provider: ^2.1.4
+  json_annotation: ^4.9.0
+  fluttertoast: ^8.2.8
 
 dev_dependencies:
   flutter_test:
