@@ -2,7 +2,6 @@ import 'dart:io' as io;
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
-
 import '../model/shlokModel.dart';
 
 enum ShuffleMode {
@@ -56,60 +55,77 @@ class AudioPlayerManager extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  Future<void> playMusic(Verse music, int? chapterId) async {
+    print("This method is working first");
 
-  Future<void> playMusic(
-      Verse music,
-      ) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final audioFile = io.File('${directory.path}/${music.verse}.mp3');
+      // Correct file path with chapterId
+      final audioFile = io.File('${directory.path}/chapter_$chapterId${music.verse}.mp3');
 
-      if (await audioFile.existsSync()) {
-        await _audioPlayer.setUrl('file://${audioFile.path}');
-        _audioPlayer.play();
-        _isMusicBarVisible = true;
+      if (await audioFile.exists()) {
+        // Update current music and isPlaying state immediately so the UI can reflect it
         _currentMusic = music;
         _currentIndex = _playlist.indexOf(music);
         _isPlaying = true;
+        _isMusicBarVisible = true;
+        notifyListeners();  // Update the UI now
+
+        print("Starting to play music");
+
+        // Play the audio using the file URL
+        await _audioPlayer.setUrl('file://${audioFile.path}');
+        await _audioPlayer.play();  // Ensure to await this for smooth transitions
+
+        // Print updated state
+        print("Play Music Is $_isPlaying");
+        print("My Current Music Is $_currentMusic");
+
+        // Listen for duration changes
         _audioPlayer.durationStream.listen((duration) {
           _duration = duration ?? Duration.zero;
           notifyListeners();
         });
 
+        // Listen for position changes
         _audioPlayer.positionStream.listen((position) {
           _currentPosition = position;
           notifyListeners();
         });
 
+        // Listen for player state changes (e.g., when the music finishes)
         _audioPlayer.playerStateStream.listen((state) {
           if (state.processingState == ProcessingState.completed) {
+            // Song has completed playing, manage based on shuffle mode
             switch (_shuffleMode) {
               case ShuffleMode.playNext:
-                skipNext(); // Automatically skip to next
+                skipNext(chapterId!); // Automatically skip to the next song
                 break;
               case ShuffleMode.playOnceAndClose:
                 pauseMusic();
                 break;
               case ShuffleMode.playOnLoop:
                 _audioPlayer.seek(Duration.zero);
-                _audioPlayer.play();
+                _audioPlayer.play(); // Play again from the start
                 break;
             }
           }
+          // Notify the listeners for any state changes
+          notifyListeners();
         });
 
+        // If using notifications for media control, update them here
         await _updateNotification();
-        notifyListeners();
+
       } else {
-        // Handle the case when the audio file does not exist
-        print("Audio file not found");
+        // Handle the case where the audio file does not exist
+        print("Audio file for verse ${music.verse} in chapter $chapterId not found");
       }
     } catch (error) {
-      print('Error playing music: $error');
+      // Catch and print any errors
+      print('Error playing music is : $error');
     }
   }
-
-
 
   // Future<void> playMusic(
   //   Verse music,
@@ -184,7 +200,7 @@ class AudioPlayerManager extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  void skipNext() {
+  void skipNext(int chapterId) {
     if (_currentMusic != null) {
       int currentIndexInPlaylist = _playlist.indexOf(_currentMusic!);
 
@@ -196,11 +212,11 @@ class AudioPlayerManager extends ChangeNotifier with WidgetsBindingObserver {
         _currentIndex = 0;
       }
 
-      playMusic(_playlist[_currentIndex]);
+      playMusic(_playlist[_currentIndex],chapterId);
     }
   }
 
-  void skipPrevious({List<Verse>? fixedTabMusicList}) {
+   skipPrevious({List<Verse>? fixedTabMusicList, required int chapterId}) {
     List<Verse> playlist = fixedTabMusicList ?? _playlist;
 
     if (_currentMusic != null) {
@@ -212,7 +228,7 @@ class AudioPlayerManager extends ChangeNotifier with WidgetsBindingObserver {
         _currentIndex = playlist.length - 1;
       }
 
-      playMusic(playlist[_currentIndex]);
+      playMusic(playlist[_currentIndex],chapterId);
     }
   }
 

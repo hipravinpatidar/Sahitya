@@ -121,7 +121,7 @@ class _MusicBarState extends State<MusicBar> {
                           // Skip Previous
                           IconButton(
                             onPressed: () {
-                              audioManager.skipPrevious();
+                              audioManager.skipPrevious(chapterId: widget.chapterNumber);
                             },
                             icon: Icon(
                               Icons.skip_previous,
@@ -145,7 +145,7 @@ class _MusicBarState extends State<MusicBar> {
                           // Skip Next
                           IconButton(
                             onPressed: () {
-                              audioManager.skipNext();
+                              audioManager.skipNext(widget.chapterNumber);
                             },
                             icon: Icon(
                               Icons.skip_next,

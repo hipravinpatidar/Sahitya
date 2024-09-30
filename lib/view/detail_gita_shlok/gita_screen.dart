@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:sahityadesign/controller/audio_controller.dart';
@@ -41,8 +40,7 @@ class GitaScreen extends StatefulWidget {
 
 class _GitaScreenState extends State<GitaScreen> {
   bool isLoading = false;
-  //bool notConnection = false;
- bool _hasInternet = false;
+  bool _hasInternet = false;
   bool _showBookFormate = false;
 
   String _selectedChap = 'Chapter 1';
@@ -106,154 +104,109 @@ class _GitaScreenState extends State<GitaScreen> {
 
   List<Verse> chapterData = [];
 
- // This IS My Working Code
 
 
-  // Future<void> getChapters() async {
-  //   if (widget.verseCount! == chapterData.length) return;
-  //
-  //   setState(() {
-  //     isLoading = true;
-  //   });
-  //
-  //   try {
-  //     final ApiService apiService = ApiService();
-  //     final res = await apiService.getChapters(
-  //       "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}",
-  //     );
-  //
-  //     if (res != null) {
-  //       final jsonString = jsonEncode(res);
-  //       final chaptersModel = ShlokModelFromJson(jsonString);
-  //
-  //       if (chaptersModel.data!.isNotEmpty) {
-  //         final newChapterData = chaptersModel.data![0].verses!;
-  //
-  //         // Save the data for the current chapter locally
-  //         await saveDataLocally(newChapterData, widget.myId);
-  //         //audioManager.setPlaylist(chapterData);
-  //       } else {
-  //         print('No chapters data available');
-  //       }
-  //     } else {
-  //       print('No data received');
-  //     }
-  //   } catch (e) {
-  //     print("Error fetching data for chapter ${widget.myId}: $e");
-  //   } finally {
-  //     if (mounted) {
-  //       setState(() {
-  //         isLoading = false;
-  //       });
-  //     }
-  //   }
-  // }
+  Future<void> getChapters() async {
+    // Prevent multiple calls if already loading
+    if (isLoading) return;
 
-  // Save data locally as a JSON file for each chapter
+    // Check if all verses are already loaded
+    if (widget.verseCount! == chapterData.length) return;
 
-  Future<void> checkInternet() async {
-    _hasInternet = !(await isConnected()); // Invert the value of isConnected()
-    print("${_hasInternet}");
-    setState(() {}); // Update the UI with the new value
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final ApiService apiService = ApiService();
+      List<Verse> tempData = [];
+
+      // Fetch verses in small batches
+      for (int i = 1; i < (_verse > 4 ? 5 : 10); i++) {
+        final res = await apiService.getChapters(
+          "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}&verse=$_verse",
+        );
+
+        if (res != null) {
+          final jsonString = jsonEncode(res);
+          final chaptersModel = ShlokModelFromJson(jsonString);
+
+          if (chaptersModel.data!.isNotEmpty) {
+            final newVerse = chaptersModel.data![0].verses![0];
+
+            // Avoid duplicating verses in chapterData
+            if (!chapterData.contains(newVerse)) {
+              tempData.add(newVerse); // Add to temporary data
+
+              setState(() {
+                chapterData.add(newVerse); // Add to UI data
+              });
+
+              _verse++; // Increment the verse count
+
+              // Save the data after fetching
+              await saveDataLocally(chapterData, widget.myId);
+            }
+          } else {
+            print('No chapters data available');
+            break;
+          }
+        } else {
+          print('No data received');
+          break;
+        }
+      }
+
+      // Update the playlist after fetching the data
+      audioManager.setPlaylist(chapterData);
+
+      // Check if the fetched data is incomplete (fetched verses < total verses)
+      if (chapterData.length < widget.verseCount!) {
+        print("Incomplete data, removing saved file.");
+        await deleteLocalData(widget.myId);
+      }
+
+      setState(() {
+        isLoading = false;
+      });
+
+    } catch (e) {
+      print("Error fetching data for chapter ${widget.myId}: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Future<void> saveDataLocally(List<Verse> data, int? chapterId) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/chapter_$chapterId.json'); // Save each chapter in a separate file
+      final chapterFile = File('${directory.path}/chapter_$chapterId.json'); // Save each chapter in a separate file
 
       // Convert data to JSON and write to the file
       String jsonData = jsonEncode(data.map((e) => e.toJson()).toList());
-      await file.writeAsString(jsonData);
+      await chapterFile.writeAsString(jsonData);
       print("Data for chapter $chapterId saved locally");
 
-      // Download audio files
+      // Save audio files for each verse
       for (var verse in data) {
         if (verse.verseData?.audioUrl != null) {
-          final audioFile = File('${directory.path}/${verse.verse}.mp3');
+          final audioFile = File('${directory.path}/chapter_$chapterId${verse.verse}.mp3');
           if (!await audioFile.exists()) {
             final response = await http.get(Uri.parse(verse.verseData!.audioUrl!));
             await audioFile.writeAsBytes(response.bodyBytes);
-            print("Audio for verse ${verse.verse} saved locally");
+            print("Audio for verse ${verse.verse} in chapter $chapterId saved locally");
           }
+          verse.verseData!.audioUrl = '${directory.path}/chapter_$chapterId${verse.verse}.mp3';
         }
       }
 
-      // Load data from JSON file and show in UI
-      await loadChaptersFromLocal(chapterId);
     } catch (e) {
       print("Error saving data locally for chapter $chapterId: $e");
     }
   }
 
-  Future<void> loadChaptersFromLocal(int? chapterId) async {
-    print("Loading data for chapter $chapterId from local storage");
-
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/chapter_$chapterId.json'); // Load the specific chapter file
-
-      // Check if the file exists
-      if (await file.exists()) {
-        final jsonString = await file.readAsString();
-        final List<dynamic> jsonData = jsonDecode(jsonString);
-
-        setState(() {
-          chapterData = jsonData.map((item) => Verse.fromJson(item)).toList();
-          audioManager.setPlaylist(chapterData);
-        });
-        print("Data for chapter $chapterId loaded from local file");
-      } else {
-        print("Local file for chapter $chapterId does not exist");
-      }
-    } catch (e) {
-      print("Error loading data for chapter $chapterId from local file: $e");
-    }
-  }
-
-// Check if data is already saved locally
-  Future<void> checkLocalData(int chapterId) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/chapter_$chapterId.json'); // Load the specific chapter file
-
-    // Check if the file exists
-    if (await file.exists()) {
-      await loadChaptersFromLocal(chapterId);
-    } else {
-      if (await isConnected()) {
-        await getChapters();
-      } else {
-       // setState(() {
-          print("No Internet Connection");
-          print("${_hasInternet}");
-
-          Future.delayed(Duration(seconds: 2), () {
-            //Navigator.pop(context);
-            Navigator.push(context, MaterialPageRoute(builder: (context) => GitaStatic(isToast: _hasInternet),));
-            // Fluttertoast.showToast(
-            //   msg: "No internet connection",
-            //   toastLength: Toast.LENGTH_LONG,
-            //   gravity: ToastGravity.SNACKBAR,
-            //   timeInSecForIosWeb: 1,
-            //   backgroundColor: Colors.grey,
-            //   textColor: Colors.white,
-            //   fontSize: 16.0,
-            // );
-          });
-
-
-      //  });
-
-      }
-    }
-  }
-
-// Fetch chapters from API or load from local file
-  Future<void> fetchChapters() async {
-    int chapterId = widget.myId ?? 1; // Default to chapter 1 if no chapterId is provided
-    await checkLocalData(chapterId);
-  }
-
+// Check for internet connectivity and handle accordingly
   Future<bool> isConnected() async {
     var connectivityResult = await Connectivity().checkConnectivity();
 
@@ -278,6 +231,97 @@ class _GitaScreenState extends State<GitaScreen> {
     }
   }
 
+  Future<void> loadChaptersFromLocal(int? chapterId) async {
+    print("Loading data for chapter $chapterId from local storage");
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final chapterFile = File('${directory.path}/chapter_$chapterId.json'); // Load the specific chapter file
+
+      // Check if the file exists
+      if (await chapterFile.exists()) {
+        final jsonString = await chapterFile.readAsString();
+        final List<dynamic> jsonData = jsonDecode(jsonString);
+
+        setState(() {
+          chapterData = jsonData.map((item) => Verse.fromJson(item)).toList();
+          audioManager.setPlaylist(chapterData);
+        });
+        print("Data for chapter $chapterId loaded from local file");
+      } else {
+        print("Local file for chapter $chapterId does not exist");
+      }
+    } catch (e) {
+      print("Error loading data for chapter $chapterId from local file: $e");
+    }
+  }
+
+  Future<void> deleteLocalData(int? chapterId) async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final chapterFile = File('${directory.path}/chapter_$chapterId.json');
+
+      // Check if the file exists
+      if (await chapterFile.exists()) {
+        await chapterFile.delete();
+        print("Incomplete data for chapter $chapterId deleted locally.");
+      }
+    } catch (e) {
+      print("Error deleting local data for chapter $chapterId: $e");
+    }
+  }
+
+
+
+
+
+
+  Future<void> checkLocalData(int chapterId) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/chapter_$chapterId.json');
+
+    // Check if the file exists
+    if (await file.exists()) {
+      // Load the chapter data from local storage
+      final jsonString = await file.readAsString();
+      final List<dynamic> jsonData = jsonDecode(jsonString);
+
+      // Check if the data is incomplete
+      if (jsonData.length < widget.verseCount!) {
+        print("Incomplete data found, deleting and refetching from first verse.");
+        await deleteLocalData(chapterId); // Delete incomplete data
+
+        // Check internet connection before refetching
+        if (await isConnected()) {
+          await loadChaptersFromAPI(chapterId); // Fetch new data from the first verse
+        } else {
+          handleNoInternet(); // Handle no internet case
+        }
+      } else {
+        // If the data is complete, load from local storage
+        await loadChaptersFromLocal(chapterId);
+      }
+    } else {
+      // No local data, so fetch from the API only if connected
+      if (await isConnected()) {
+        await loadChaptersFromAPI(chapterId);
+      } else {
+        handleNoInternet(); // Handle no internet case
+      }
+    }
+  }
+
+  void handleNoInternet() {
+    print("No Internet Connection");
+    _hasInternet = true; // Example flag to manage connection state
+
+    Future.delayed(Duration(seconds: 2), () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => GitaStatic(isToast: _hasInternet)),
+      );
+    });
+  }
 
   // Future<bool> isConnected() async {
   //   var connectivityResult = await Connectivity().checkConnectivity();
@@ -303,219 +347,154 @@ class _GitaScreenState extends State<GitaScreen> {
   //   }
   // }
 
-  Future<void> getChapters() async {
-    // Prevent multiple calls if already loading
-    if (isLoading) return;
-
-    // Check if all verses are already loaded
-    if (widget.verseCount! == chapterData.length) return;
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final ApiService apiService = ApiService();
-      bool isFirstIteration = true; // To track the first iteration
-
-      // Loop over the required iterations (1 to 2)
-      for (int i = 1; i < (_verse > 4 ? 5 : 10); i++) {
-        final res = await apiService.getChapters(
-          "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}&verse=$_verse",
-        );
-
-        if (res != null) {
-          final jsonString = jsonEncode(res); // Convert the response to JSON
-          final chaptersModel = ShlokModelFromJson(jsonString);
-
-          // Check if there is valid data
-          if (chaptersModel.data!.isNotEmpty) {
-            final newVerse = chaptersModel.data![0].verses![0];
-
-            // Ensure no duplicate data is added
-            if (!chapterData.contains(newVerse)) {
-              setState(() {
-                chapterData.add(newVerse); // Add the data to the list
-                print(_verse);
-                if (isFirstIteration) {
-                  // Set the playlist on first iteration
-                  isFirstIteration = false;
-                  audioManager.setPlaylist(chapterData);
-                }
-                _verse++; // Increment the verse for the next request
-              });
-
-              // Save the data to json file
-              await saveDataLocally(chapterData, widget.myId);
-
-              // Wait for the setState to complete and data to be added before continuing
-              await Future.delayed(Duration(milliseconds: 200));
-            }
-          } else {
-            print('No chapters data available');
-            break; // Break the loop if no more data is available
-          }
-        } else {
-          print('No data received');
-          break; // Exit the loop if no data is received
-        }
-      }
-
-      setState(() {
-        isLoading = false; // Loading finished
-      });
-
-    } catch (e) {
-      print("Error fetching data for chapter ${widget.myId}: $e");
-      setState(() {
-        isLoading = false;
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
+  Future<void> loadChaptersFromAPI(int chapterId) async {
+    _verse = 1; // Reset the verse count to start from the first verse
+    await getChapters(); // Fetch chapters
   }
 
+  // Future<void> deleteLocalData(int? chapterId) async {
+  //   try {
+  //     final directory = await getApplicationDocumentsDirectory();
+  //     final chapterFile = File('${directory.path}/chapter_$chapterId.json');
+  //
+  //     // Check if the file exists
+  //     if (await chapterFile.exists()) {
+  //       await chapterFile.delete();
+  //       print("Incomplete data for chapter $chapterId deleted locally.");
+  //     }
+  //   } catch (e) {
+  //     print("Error deleting local data for chapter $chapterId: $e");
+  //   }
+  // }
 
+  Future<void> fetchChapters() async {
+    int chapterId = widget.myId ?? 1; // Default to chapter 1 if no chapterId is provided
+    await checkLocalData(chapterId); // Check and load or delete incomplete data
+  }
 
   // Future<void> getChapters() async {
+  //   // Prevent multiple calls if already loading
+  //   if (isLoading) return;
+  //
+  //   // Check if all verses are already loaded
+  //   if (widget.verseCount! == chapterData.length) return;
+  //
   //   setState(() {
   //     isLoading = true;
   //   });
   //
   //   try {
   //     final ApiService apiService = ApiService();
-  //     bool isFirstIteration = true; // To track the first iteration
+  //     List<Verse> tempData = [];
   //
-  //     // Loop over the required iterations (1 to 2)
+  //     // Fetch verses in small batches
   //     for (int i = 1; i < (_verse > 4 ? 5 : 10); i++) {
   //       final res = await apiService.getChapters(
   //         "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}&verse=$_verse",
   //       );
   //
   //       if (res != null) {
-  //         final jsonString = jsonEncode(res); // Convert the response to JSON
+  //         final jsonString = jsonEncode(res);
   //         final chaptersModel = ShlokModelFromJson(jsonString);
   //
-  //         // Check if there is valid data
   //         if (chaptersModel.data!.isNotEmpty) {
-  //           final newChapterData = chaptersModel.data![0].verses!;
+  //           final newVerse = chaptersModel.data![0].verses![0];
   //
-  //           // Ensure no duplicate data is added
-  //           if (!chapterData.contains(newChapterData)) {
+  //           if (!chapterData.contains(newVerse)) {
+  //             tempData.add(newVerse); // Add to temporary data
+  //
   //             setState(() {
-  //               chapterData.addAll(newChapterData); // Add the data to the list
-  //               print(_verse);
-  //               if (isFirstIteration) {
-  //                 // Set the playlist on first iteration
-  //                 isFirstIteration = false;
-  //                 audioManager.setPlaylist(chapterData);
-  //               }
-  //               _verse++; // Increment the verse for the next request
+  //               chapterData.add(newVerse);
   //             });
   //
-  //             // Save the data to json file
-  //             await saveDataLocally(chapterData, widget.myId);
+  //             _verse++; // Increment the verse count
   //
-  //             // Wait for the setState to complete and data to be added before continuing
-  //             await Future.delayed(Duration(milliseconds: 200));
+  //             // Save data temporarily after fetching
+  //             await saveDataLocally(chapterData, widget.myId);
   //           }
   //         } else {
   //           print('No chapters data available');
-  //           break; // Break the loop if no more data is available
+  //           break;
   //         }
   //       } else {
   //         print('No data received');
-  //         break; // Exit the loop if no data is received
+  //         break;
   //       }
   //     }
   //
+  //     // If the user didn't scroll through all verses, clear incomplete data
+  //     if (chapterData.length < widget.verseCount!) {
+  //       print("Incomplete data, removing saved file.");
+  //       await deleteLocalData(widget.myId);
+  //     }
+  //
   //     setState(() {
-  //       isLoading = false; // Loading finished
+  //       isLoading = false;
   //     });
   //
   //   } catch (e) {
   //     print("Error fetching data for chapter ${widget.myId}: $e");
-  //   } finally {
-  //     if (mounted) {
-  //       setState(() {
-  //         isLoading = false;
-  //       });
-  //     }
-  //   }
-  // }
-
-
-
-
-
-
-
-  // Future<void> getChapters() async {
-  //   if (isLoading) return; // Prevent multiple calls if already loading
-  //   if(widget.verseCount! == chapterData.length) return;
-  //   print(widget.verseCount!);
-  //   print(chapterData.length);
-  //   setState(() {
-  //     isLoading = true;
-  //   });
-  //
-  //   try {
-  //     final ApiService apiService = ApiService();
-  //     bool isFirstIteration = true; // To track the first iteration
-  //
-  //     // Loop over the required iterations (1 to 2)
-  //     for (int i = 1; i < (_verse > 4?5:10); i++) {
-  //       final res = await apiService.getChapters(
-  //         "https://mahakal.rizrv.in/api/v1/sahitya/bhagvad-geeta?chapter=${widget.myId}&verse=$_verse",
-  //       );
-  //
-  //       if (res != null) {
-  //         final jsonString = jsonEncode(res); // Convert the response to JSON
-  //         final chaptersModel = ShlokModelFromJson(jsonString);
-  //
-  //         // Check if there is valid data
-  //         if (chaptersModel.data!.isNotEmpty) {
-  //           final verse = chaptersModel.data![0].verses![0];
-  //
-  //           // Ensure no duplicate data is added
-  //           if (!chapterData.contains(verse)) {
-  //             setState(() {
-  //               chapterData.add(verse); // Add the data to the list
-  //               print(_verse);
-  //               if (isFirstIteration) {
-  //                 // Set the playlist on first iteration
-  //                 isFirstIteration = false;
-  //                 audioManager.setPlaylist(chapterData);
-  //               }
-  //               _verse++; // Increment the verse for the next request
-  //             });
-  //
-  //             // Wait for the setState to complete and data to be added before continuing
-  //             await Future.delayed(Duration(milliseconds: 200));
-  //           }
-  //         } else {
-  //           print('No chapters data available');
-  //           break; // Break the loop if no more data is available
-  //         }
-  //       } else {
-  //         print('No data received');
-  //         break; // Exit the loop if no data is received
-  //       }
-  //     }
-  //
-  //     setState(() {
-  //       isLoading = false; // Loading finished
-  //     });
-  //
-  //   } catch (e) {
-  //     print("Error: $e");
   //     setState(() {
   //       isLoading = false;
   //     });
+  //   }
+  // }
+
+  // Future<void> saveDataLocally(List<Verse> data, int? chapterId) async {
+  //   try {
+  //     final directory = await getApplicationDocumentsDirectory();
+  //     final chapterFile = File('${directory.path}/chapter_$chapterId.json'); // Save each chapter in a separate file
+  //
+  //     // Convert data to JSON and write to the file
+  //     String jsonData = jsonEncode(data.map((e) => e.toJson()).toList());
+  //     await chapterFile.writeAsString(jsonData);
+  //     print("Data for chapter $chapterId saved locally");
+  //
+  //     // Saving audio files for each verse
+  //     for (var verse in data) {
+  //       if (verse.verseData?.audioUrl != null) {
+  //         final audioFile = File('${directory.path}/chapter_$chapterId${verse.verse}.mp3');
+  //         if (!await audioFile.exists()) {
+  //           final response = await http.get(Uri.parse(verse.verseData!.audioUrl!));
+  //           await audioFile.writeAsBytes(response.bodyBytes);
+  //           print("Audio for verse ${verse.verse} in chapter $chapterId saved locally");
+  //         }
+  //         verse.verseData!.audioUrl = '${directory.path}/chapter_$chapterId${verse.verse}.mp3';
+  //       }
+  //     }
+  //   } catch (e) {
+  //     print("Error saving data locally for chapter $chapterId: $e");
+  //   }
+  // }
+
+  Future<void> checkInternet() async {
+    _hasInternet = !(await isConnected()); // Invert the value of isConnected()
+    print("${_hasInternet}");
+    setState(() {}); // Update the UI with the new value
+  }
+
+  // Future<void> loadChaptersFromLocal(int? chapterId) async {
+  //   print("Loading data for chapter $chapterId from local storage");
+  //
+  //   try {
+  //     final directory = await getApplicationDocumentsDirectory();
+  //     final chapterFile = File('${directory.path}/chapter_$chapterId.json'); // Load the specific chapter file
+  //
+  //     // Check if the file exists
+  //     if (await chapterFile.exists()) {
+  //       final jsonString = await chapterFile.readAsString();
+  //       final List<dynamic> jsonData = jsonDecode(jsonString);
+  //
+  //       setState(() {
+  //         chapterData = jsonData.map((item) => Verse.fromJson(item)).toList();
+  //         audioManager.setPlaylist(chapterData);
+  //       });
+  //       print("Data for chapter $chapterId loaded from local file");
+  //     } else {
+  //       print("Local file for chapter $chapterId does not exist");
+  //     }
+  //   } catch (e) {
+  //     print("Error loading data for chapter $chapterId from local file: $e");
   //   }
   // }
 
@@ -1450,43 +1429,49 @@ class _GitaScreenState extends State<GitaScreen> {
               child: Scaffold(
                body:
 
-              //  NotificationListener<ScrollNotification>(
-              //   onNotification: (notification){
-              //   print(widget.verseCount!);
-              //   print(chapterData.length);
-              //   if(widget.verseCount! == chapterData.length)
-              //     return true;
-              //   // if (notification is ScrollEndNotification) {
-              //   //   if (!isLoading) {
-              //   //     //_loadMoreData();
-              //   //     getChapters();
-              //   //   }
-              //   // }
-              //   if (notification.metrics.pixels == notification.metrics.maxScrollExtent)  {
-              //     //getChapters();
-              //     fetchChapters();
-              //   }
-              //   return true;
-              // },
-              //
-              //      child:
 
 
+               // NotificationListener<ScrollNotification>(
+               //   onNotification: (notification) {
+               //     if (notification.metrics.pixels == notification.metrics.maxScrollExtent) {
+               //       if (widget.verseCount! > chapterData.length) {
+               //         getChapters();
+               //       }
+               //     }
+               //     return true;
+               //   },
 
 
+               // For check
 
                NotificationListener<ScrollNotification>(
-                   onNotification: (notification){
-                     print(widget.verseCount!);
-                     print(chapterData.length);
-                     if (notification.metrics.pixels == notification.metrics.maxScrollExtent)  {
-                       if (widget.verseCount! > chapterData.length) {
-                         //fetchChapters();
-                         getChapters();
-                       }
+                 onNotification: (notification) {
+                   if (notification.metrics.pixels == notification.metrics.maxScrollExtent) {
+                     if (widget.verseCount! > chapterData.length) {
+                       getChapters(); // Fetch new verses on scroll
                      }
-                     return true;
-                   },
+                   }
+                   return true;
+                 },
+
+
+
+
+
+               // Working
+
+               // NotificationListener<ScrollNotification>(
+               //     onNotification: (notification){
+               //       print(widget.verseCount!);
+               //       print(chapterData.length);
+               //       if (notification.metrics.pixels == notification.metrics.maxScrollExtent)  {
+               //         if (widget.verseCount! > chapterData.length) {
+               //           //fetchChapters();
+               //           getChapters();
+               //         }
+               //       }
+               //       return true;
+               //     },
                    child: // Your child widget here
 
 
@@ -1622,6 +1607,8 @@ class _GitaScreenState extends State<GitaScreen> {
                               : screenWidth * 0.2,
                           automaticallyImplyLeading: false,
                           pinned: true,
+                         // snap: true,
+                          floating: true,
                           flexibleSpace: _showBookFormate
                               ? Padding(
                                   padding: const EdgeInsets.all(8.0),
@@ -2051,12 +2038,8 @@ class _GitaScreenState extends State<GitaScreen> {
                                                                           Widget? child) {
                                                                         bool
                                                                         isCurrentSongPlaying =
-                                                                            audioController
-                                                                                .isPlaying &&
-                                                                                audioController
-                                                                                    .currentMusic ==
-                                                                                    chapterData[
-                                                                                    index];
+                                                                            audioController.isPlaying
+                                                                                && audioController.currentMusic == chapterData[index];
 
                                                                         return IconButton(
                                                                           onPressed: () {
@@ -2077,10 +2060,11 @@ class _GitaScreenState extends State<GitaScreen> {
                                                                                 audioController
                                                                                     .playMusic(
                                                                                     chapterData[
-                                                                                    index]);
+                                                                                    index],widget.myId);
 
-                                                                                print(
-                                                                                    "Song clicked and played");
+                                                                                print("${isCurrentSongPlaying}");
+
+                                                                                print("Song clicked and played");
                                                                               }
                                                                             }
 
@@ -2110,9 +2094,6 @@ class _GitaScreenState extends State<GitaScreen> {
                                                                         );
                                                                       },
                                                                     )
-
-
-
 
                                                                   ],
                                                                 )
@@ -2210,13 +2191,24 @@ class _GitaScreenState extends State<GitaScreen> {
 
 
                                       }else {
-                                        return Container(
-                                          alignment: Alignment.center,
-                                          width: double.infinity,
-                                         color: Colors.red.withOpacity(0.5),
-                                          padding: EdgeInsets.symmetric(vertical: 3, horizontal: 5),
-                                          child: Text('Please Wait', style: TextStyle(color: Colors.white),),
+                                        return Center(
+                                          child: Container(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.black,
+                                              backgroundColor: Colors.white,
+                                              strokeWidth: 1.5,
+                                            ),
+                                          ),
                                         );
+                                        //   Container(
+                                        //   alignment: Alignment.center,
+                                        //   width: double.infinity,
+                                        //  color: Colors.red.withOpacity(0.5),
+                                        //   padding: EdgeInsets.symmetric(vertical: 3, horizontal: 5),
+                                        //   child: Text('Please Wait', style: TextStyle(color: Colors.white),),
+                                        // );
                                       }
                                     },
                                   ),

@@ -54,6 +54,9 @@ class _ShareScreenState extends State<ShareScreen> {
     "assets/image/imageseventh.jpg",
     "assets/image/imageeighth.jpg",
     "assets/image/imageninth.jpg",
+    "assets/image/imagegita.jpg",
+    "assets/image/gitaimage.jpg",
+    "assets/image/gita.jpg",
 
   ];
 

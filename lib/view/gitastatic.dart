@@ -269,13 +269,13 @@ class _GitaStaticState extends State<GitaStatic> {
             bottomNavigationBar: Visibility(
               visible: widget.isToast ?? false,
               child: Container(
-                padding: EdgeInsets.all(10.0),
-                margin: EdgeInsets.all(10.0),
+                padding: const EdgeInsets.all(10.0),
+                margin: const EdgeInsets.all(10.0),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.4),
                   borderRadius: BorderRadius.circular(10.0),
                 ),
-                child: Text(
+                child: const Text(
                   "No internet connection",
                   style: TextStyle(
                     fontSize: 16.0,

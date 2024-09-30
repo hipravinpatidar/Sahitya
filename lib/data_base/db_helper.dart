@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'package:sahityadesign/model/chapters_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-
 import '../model/shlokModel.dart';
 
 class DBHelper {
