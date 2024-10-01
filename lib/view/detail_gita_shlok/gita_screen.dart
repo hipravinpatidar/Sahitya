@@ -1430,7 +1430,6 @@ class _GitaScreenState extends State<GitaScreen> {
                body:
 
 
-
                // NotificationListener<ScrollNotification>(
                //   onNotification: (notification) {
                //     if (notification.metrics.pixels == notification.metrics.maxScrollExtent) {
