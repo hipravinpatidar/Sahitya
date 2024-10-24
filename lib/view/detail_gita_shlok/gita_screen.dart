@@ -15,6 +15,7 @@ import '../../model/shlokModel.dart';
 import '../../ui_helpers/custom_colors.dart';
 import '../../utils/circle_container.dart';
 import '../../utils/music_bar.dart';
+import '../bhawarth_screen.dart';
 import '../share_screen.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
@@ -103,7 +104,6 @@ class _GitaScreenState extends State<GitaScreen> {
   ];
 
   List<Verse> chapterData = [];
-
 
 
   Future<void> getChapters() async {
@@ -270,11 +270,6 @@ class _GitaScreenState extends State<GitaScreen> {
       print("Error deleting local data for chapter $chapterId: $e");
     }
   }
-
-
-
-
-
 
   Future<void> checkLocalData(int chapterId) async {
     final directory = await getApplicationDocumentsDirectory();
@@ -1948,8 +1943,7 @@ class _GitaScreenState extends State<GitaScreen> {
                                                                       width:
                                                                       screenWidth * 0.03,
                                                                     ),
-                                                                    Consumer<
-                                                                        BookmarkProvider>(
+                                                                    Consumer<BookmarkProvider>(
                                                                       builder: (BuildContext
                                                                       context,
                                                                           bookmarkProvider,
@@ -2004,17 +1998,23 @@ class _GitaScreenState extends State<GitaScreen> {
                                                                             Widget? child) {
                                                                           return GestureDetector(
                                                                               onTap: () {
-                                                                                _showTranslationBottomSheet(
-                                                                                    context,
-                                                                                    chapterData[index]
-                                                                                        .hiDescription ??
-                                                                                        '',
-                                                                                    index,
-                                                                                    chapterData[index]
-                                                                                        .description ??
-                                                                                        '',
-                                                                                    chapterData[index].verseImage ??
-                                                                                        '');
+
+                                                                              Navigator.push(context, MaterialPageRoute(builder: (context) => Lyricsbhajan(musicLyrics: chapterData[index].hiDescription,musicName: widget.chapterName,),));
+
+
+
+                                                                                //
+                                                                                // _showTranslationBottomSheet(
+                                                                                //     context,
+                                                                                //     chapterData[index]
+                                                                                //         .hiDescription ??
+                                                                                //         '',
+                                                                                //     index,
+                                                                                //     chapterData[index]
+                                                                                //         .description ??
+                                                                                //         '',
+                                                                                //     chapterData[index].verseImage ??
+                                                                                //         '');
                                                                               },
                                                                               child: Text(
                                                                                 "भावार्थ",

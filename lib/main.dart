@@ -5,6 +5,7 @@ import 'package:sahityadesign/controller/audio_controller.dart';
 import 'package:sahityadesign/controller/bookmark_provider.dart';
 import 'package:sahityadesign/controller/settings_controller.dart';
 import 'package:sahityadesign/controller/share_verse.dart';
+import 'package:sahityadesign/view/bhawarth_screen.dart';
 import 'package:sahityadesign/view/detail_gita_shlok/gita_screen.dart';
 import 'package:sahityadesign/view/gitastatic.dart';
 import 'package:sahityadesign/view/sahitya_home/sahitya_home.dart';
