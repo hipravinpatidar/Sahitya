@@ -53,7 +53,8 @@ class _GitaStaticState extends State<GitaStatic> {
     GitaItems(enName: "SHRADDHAATRAY VIBHAAG YOGA",hiName: "श्रद्धात्रय विभाग योग",serailNumber: 17,totalCount: 46),
     GitaItems(enName: "MOKSHA SANNYASA YOGA",hiName: "मोक्ष संन्यास योग",serailNumber: 18,totalCount: 46),
 
-    
+
+
   ];
   
   @override
