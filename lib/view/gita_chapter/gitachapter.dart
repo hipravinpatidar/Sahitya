@@ -72,7 +72,6 @@ class _GitaChapterState extends State<GitaChapter> {
           debugShowCheckedModeBanner: false,
           theme: settingsProvider.isOn ? ThemeData.dark() : ThemeData.light(),
           home: Scaffold(
-            backgroundColor: Colors.white,
             appBar: AppBar(
               backgroundColor:settingsProvider.isOn  ?  CustomColors.clrblack : CustomColors.clrorange,
               leading: GestureDetector(

@@ -1264,7 +1264,6 @@ class _GitaScreenState extends State<GitaScreen> {
           theme: settingsProvider.isOn ? ThemeData.dark() : ThemeData.light(),
           home: SafeArea(
               child: Scaffold(
-                backgroundColor: Colors.white,
                body:
 
                NotificationListener<ScrollNotification>(
@@ -1296,7 +1295,7 @@ class _GitaScreenState extends State<GitaScreen> {
                                   height: 150,
                                   width: 150,
                                   decoration: BoxDecoration(
-                                    image: DecorationImage(image: AssetImage("assets/image/loadit.gif"),fit: BoxFit.cover),
+                                    image: DecorationImage(image: AssetImage("assets/image/loading.gif"),fit: BoxFit.cover),
                                   ),
                                 ),
 
