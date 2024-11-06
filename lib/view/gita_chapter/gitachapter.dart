@@ -1,28 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
-import 'package:sahityadesign/api_service/api_service.dart';
+import 'package:sahityadesign/controller/progress_controller.dart';
 import 'package:sahityadesign/controller/settings_controller.dart';
-import 'package:sahityadesign/model/chapters_model.dart';
 import 'package:sahityadesign/ui_helpers/custom_colors.dart';
 import 'package:sahityadesign/view/detail_gita_shlok/gita_screen.dart';
-import 'package:sahityadesign/view/sahitya_home/sahitya_home.dart';
-import '../../controller/audio_controller.dart';
-import '../../model/shlokModel.dart';
-import '../../utils/music_bar.dart';
-import 'gits_static_model.dart';
+import '../../../controller/audio_controller.dart';
+import '../../model/gits_static_model.dart';
 
-class GitaStatic extends StatefulWidget {
+class GitaChapter extends StatefulWidget {
 
   final bool? isToast;
 
-   const GitaStatic({super.key,this.isToast});
+   const GitaChapter({super.key,this.isToast});
 
   @override
-  State<GitaStatic> createState() => _GitaStaticState();
+  State<GitaChapter> createState() => _GitaChapterState();
 }
 
-class _GitaStaticState extends State<GitaStatic> {
+class _GitaChapterState extends State<GitaChapter> {
 
   late AudioPlayerManager audioManager = AudioPlayerManager();
 
@@ -47,16 +42,15 @@ class _GitaStaticState extends State<GitaStatic> {
     GitaItems(enName: "BHAKTIYOGA",hiName: "भक्तियोग",serailNumber: 12,totalCount: 20),
     GitaItems(enName: "KSHETR KSHETRAGY VIBHAAG YOGA",hiName: "क्षेत्रक्षेत्रविभाग योग",serailNumber: 13,totalCount: 35),
     GitaItems(enName: "GUNATRAY VIBHAG YOGA",hiName: "गुणत्रय विभाग योग",serailNumber: 14,totalCount: 27),
-    GitaItems(enName: "PURUSHOTTAM YOGA",hiName: "पुरूषोत्तम योग",serailNumber: 15,totalCount: 0),
+    GitaItems(enName: "PURUSHOTTAM YOGA",hiName: "पुरूषोत्तम योग",serailNumber: 15,totalCount: 20),
 
-    GitaItems(enName: "DAIVASUR SAMPADA VIBHAG YOGA",hiName: "दैवसुर सम्पदा विभाग योग",serailNumber: 16,totalCount: 46),
-    GitaItems(enName: "SHRADDHAATRAY VIBHAAG YOGA",hiName: "श्रद्धात्रय विभाग योग",serailNumber: 17,totalCount: 46),
-    GitaItems(enName: "MOKSHA SANNYASA YOGA",hiName: "मोक्ष संन्यास योग",serailNumber: 18,totalCount: 46),
-
+    GitaItems(enName: "DAIVASUR SAMPADA VIBHAG YOGA",hiName: "दैवसुर सम्पदा विभाग योग",serailNumber: 16,totalCount: 24),
+    GitaItems(enName: "SHRADDHAATRAY VIBHAAG YOGA",hiName: "श्रद्धात्रय विभाग योग",serailNumber: 17,totalCount: 28),
+    GitaItems(enName: "MOKSHA SANNYASA YOGA",hiName: "मोक्ष संन्यास योग",serailNumber: 18,totalCount: 78),
 
 
   ];
-  
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +72,7 @@ class _GitaStaticState extends State<GitaStatic> {
           debugShowCheckedModeBanner: false,
           theme: settingsProvider.isOn ? ThemeData.dark() : ThemeData.light(),
           home: Scaffold(
+            backgroundColor: Colors.white,
             appBar: AppBar(
               backgroundColor:settingsProvider.isOn  ?  CustomColors.clrblack : CustomColors.clrorange,
               leading: GestureDetector(
@@ -113,11 +108,16 @@ class _GitaStaticState extends State<GitaStatic> {
             SingleChildScrollView(
               child: Column(
                 children: [
+
                   Container(
                       color: settingsProvider.isOn  ?  CustomColors.clrwhite : Colors.orange,
                       child: Center(child: Padding(
                         padding: EdgeInsets.symmetric(vertical: screenWidth * 0.02),
-                        child: Text('Continue Reading - Arjun Vishad Yog(18)',style: TextStyle(fontFamily: 'Roboto',fontSize: screenWidth * 0.04,fontWeight: FontWeight.w600,color: settingsProvider.isOn  ? CustomColors.clrblack : CustomColors.clrwhite),),
+                        child: Consumer<ProgressProvider>(builder: (BuildContext context, progressProvider, Widget? child) {
+                          return SizedBox(width: screenWidth * 0.7, child: Text('Continue Reading - ${progressProvider.chapterName} ${(progressProvider.shlokNumber)}',style: TextStyle(fontFamily: 'Roboto',fontSize: screenWidth * 0.04,fontWeight: FontWeight.w600,color: settingsProvider.isOn  ? CustomColors.clrblack : CustomColors.clrwhite,overflow: TextOverflow.ellipsis),));
+
+                        },
+                        ),
                       ))),
 
                   ListView.builder(
@@ -144,6 +144,11 @@ class _GitaStaticState extends State<GitaStatic> {
                                     children: [
                                       GestureDetector(
                                         onTap: () {
+
+                                          String? chapterName = gitaItems[index].enName;
+                                          Provider.of<ProgressProvider>(context, listen: false)
+                                              .saveProgress(chapterName!, "");
+
                                           Navigator.push(context, MaterialPageRoute(builder: (context) => GitaScreen(myId: chapter.serailNumber,chapterName: gitaItems[index].enName,chapterHindiName: gitaItems[index].hiName,verseCount: gitaItems[index].totalCount,),),);
                                         },
                                         child: Consumer<SettingsProvider>(
@@ -182,7 +187,8 @@ class _GitaStaticState extends State<GitaStatic> {
                                                           style: TextStyle(
                                                             fontFamily: 'Roboto',
                                                             fontWeight: FontWeight.w500,
-                                                            fontSize: settingsProvider.fontSize,
+                                                            fontSize: screenWidth * 0.04,
+                                                            //settingsProvider.fontSize,
                                                             overflow: TextOverflow.ellipsis,
                                                           ),
                                                           maxLines: 1,
@@ -193,7 +199,8 @@ class _GitaStaticState extends State<GitaStatic> {
                                                         child: Text(
                                                           chapter.enName ?? '',
                                                           style: TextStyle(
-                                                            fontSize: settingsProvider.fontSize,
+                                                            fontSize: screenWidth * 0.04,
+                                                            //settingsProvider.fontSize,
                                                             fontWeight: FontWeight.w400,
                                                             overflow: TextOverflow.ellipsis,
                                                           ),
@@ -267,24 +274,68 @@ class _GitaStaticState extends State<GitaStatic> {
               ),
             ),
 
-            bottomNavigationBar: Visibility(
-              visible: widget.isToast ?? false,
-              child: Container(
-                padding: const EdgeInsets.all(10.0),
-                margin: const EdgeInsets.all(10.0),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: const Text(
-                  "No internet connection",
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    color: Colors.white,
+              bottomNavigationBar: Visibility(
+                visible: widget.isToast ?? false,
+                child: Container(
+                  padding: const EdgeInsets.all(16.0),
+                  margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange, Colors.redAccent], // Gradient from orange to red
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        spreadRadius: 1,
+                        blurRadius: 8,
+                        offset: Offset(0, 4), // Shadow offset
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.signal_wifi_off, // Icon for no internet
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        "No internet connection",
+                        style: TextStyle(
+                          fontSize: 16.0,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
+              )
+
+
+            // bottomNavigationBar: Visibility(
+            //   visible: widget.isToast ?? false,
+            //   child: Container(
+            //     padding: const EdgeInsets.all(10.0),
+            //     margin: const EdgeInsets.all(10.0),
+            //     decoration: BoxDecoration(
+            //       color: Colors.black.withOpacity(0.4),
+            //       borderRadius: BorderRadius.circular(10.0),
+            //     ),
+            //     child: const Text(
+            //       "No internet connection",
+            //       style: TextStyle(
+            //         fontSize: 16.0,
+            //         color: Colors.white,
+            //       ),
+            //     ),
+            //   ),
+            // ),
 
           ),
         );

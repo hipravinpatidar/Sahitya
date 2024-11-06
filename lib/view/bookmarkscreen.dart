@@ -5,7 +5,6 @@ import 'package:sahityadesign/controller/settings_controller.dart';
 import 'package:sahityadesign/ui_helpers/custom_colors.dart';
 import 'package:sahityadesign/view/share_screen.dart';
 
-
 class BookMark extends StatefulWidget {
   const BookMark({super.key});
 
@@ -44,6 +43,7 @@ class _BookMarkState extends State<BookMark> {
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   indicatorColor: CustomColors.clrorange,
                     dividerColor: Colors.transparent,
+                    labelStyle: TextStyle(fontSize: 14,fontWeight: FontWeight.bold),
                     splashFactory: NoSplash.splashFactory,
                     indicatorSize: TabBarIndicatorSize.tab,
                     tabs: [
@@ -132,9 +132,9 @@ class _BookMarkShlOkState extends State<BookMarkShlOk> {
                                                     ? CustomColors.clrwhite
                                                     : CustomColors
                                                     .clrblack)),
-                                        child: const Padding(
+                                        child: Padding(
                                           padding: EdgeInsets.all(8),
-                                          child: Text("1",
+                                          child: Text("${shloka.verse}",
                                             style: TextStyle(fontSize: 14),
                                           ),
                                         ),

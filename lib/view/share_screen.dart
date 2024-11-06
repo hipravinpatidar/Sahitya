@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sahityadesign/model/chapters_model.dart';
 import 'package:sahityadesign/ui_helpers/custom_colors.dart';
 import 'package:screenshot/screenshot.dart';
 import '../controller/share_verse.dart';

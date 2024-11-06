@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sahityadesign/view/gita_chapter/gita_chapter.dart';
-import 'package:sahityadesign/view/gitastatic.dart';
-
+import 'package:sahityadesign/view/gita_chapter/gitachapter.dart';
 import '../../ui_helpers/custom_colors.dart';
 
 class SahityaList extends StatefulWidget {
@@ -38,15 +36,7 @@ class _SahityaListState extends State<SahityaList> {
               onTap: () {
 
                 switch(index){
-
-                     case 0: Navigator.push(context, MaterialPageRoute(builder: (context) => GitaStatic(isToast: false,),));
-
-                //   case 1: Navigator.push(context, MaterialPageRoute(builder: (context) => Videomovies(),));
-                //
-                //   case 2: Navigator.push(context, MaterialPageRoute(builder: (context) => Videobhajan(),));
-                //
-                //   case 3: Navigator.push(context, MaterialPageRoute(builder: (context) => Videospritual(),));
-
+                     case 0: Navigator.push(context, MaterialPageRoute(builder: (context) => GitaChapter(isToast: false,),));
                 }
               },
               child: Padding(

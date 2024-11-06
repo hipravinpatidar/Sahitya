@@ -56,11 +56,6 @@ class SettingsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  //onBookFormate() {
-  //   _showBookFormate = !_showBookFormate;
-  //   notifyListeners();
-  // }
-
   // Getters for your settings variables
   String get selectedFont => _selectedFont;
   double get fontSize => _fontSize;

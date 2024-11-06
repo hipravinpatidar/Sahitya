@@ -127,59 +127,12 @@ class AudioPlayerManager extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // Future<void> playMusic(
-  //   Verse music,
-  // ) async {
-  //   try {
-  //     await _audioPlayer.setUrl(music.verseData?.audioUrl ?? '');
-  //     _audioPlayer.play();
-  //     _isMusicBarVisible = true;
-  //     _currentMusic = music;
-  //     _currentIndex = _playlist.indexOf(music);
-  //     _isPlaying = true;
-  //     _audioPlayer.durationStream.listen((duration) {
-  //       _duration = duration ?? Duration.zero;
-  //       notifyListeners();
-  //     });
-  //
-  //     _audioPlayer.positionStream.listen((position) {
-  //       _currentPosition = position;
-  //       notifyListeners();
-  //     });
-  //
-  //     _audioPlayer.playerStateStream.listen((state) {
-  //       if (state.processingState == ProcessingState.completed) {
-  //         switch (_shuffleMode) {
-  //           case ShuffleMode.playNext:
-  //             skipNext(); // Automatically skip to next
-  //             break;
-  //           case ShuffleMode.playOnceAndClose:
-  //             pauseMusic();
-  //             break;
-  //           case ShuffleMode.playOnLoop:
-  //             _audioPlayer.seek(Duration.zero);
-  //             _audioPlayer.play();
-  //             break;
-  //         }
-  //       }
-  //     });
-  //
-  //     await _updateNotification();
-  //     notifyListeners();
-  //   } catch (error) {
-  //     print('Error playing music: $error');
-  //   }
-  // }
-
-
   void stopMusic(){
     _audioPlayer.stop();
     _isPlaying = false;
     _isMusicBarVisible = false;
     notifyListeners();
-
   }
-
   void togglePlayPause() async {
     if (_isPlaying) {
       pauseMusic();

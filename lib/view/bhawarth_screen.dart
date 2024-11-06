@@ -5,19 +5,19 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import '../ui_helpers/custom_colors.dart';
 
-class Lyricsbhajan extends StatefulWidget {
+class BhawarthScreen extends StatefulWidget {
   final String? musicLyrics;
   final String? musicName;
 
-  Lyricsbhajan({
+  BhawarthScreen({
     super.key, this.musicLyrics, this.musicName,
   });
 
   @override
-  State<Lyricsbhajan> createState() => _LyricsbhajanState();
+  State<BhawarthScreen> createState() => _BhawarthScreenState();
 }
 
-class _LyricsbhajanState extends State<Lyricsbhajan> {
+class _BhawarthScreenState extends State<BhawarthScreen> {
   int _currentIndex = 0;
   bool _isBlackBackground = false;
   double _textScaleFactor = 1.0;
