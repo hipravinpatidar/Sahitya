@@ -1,16 +1,32 @@
-# sahityadesign
+# 📜 Sahitya - Spiritual Literature App (गीता/वेद/पुराण)
 
-A new Flutter project.
+[![Flutter](https://img.shields.io/badge/Flutter-3.19.5-blue)](https://flutter.dev)
+[![API](https://img.shields.io/badge/API-RESTful-orange)](https://your-api-docs.com)
+[![State Management](https://img.shields.io/badge/State-Provider-purple)](https://pub.dev/packages/provider)
 
-## Getting Started
+A feature-rich Flutter application for exploring sacred Hindu scriptures with intelligent data management and immersive audio experience.
 
-This project is a starting point for a Flutter application.
+## 🌟 Divine Features
 
-A few resources to get you started if this is your first Flutter project:
+### 📖 Scripture Explorer
+- **Dynamic API Pagination** - Load verses on scroll (No bulk downloads)
+- **Smart Local Caching** - JSON storage for offline access
+- **Multi-Text Support** - Original Sanskrit + Hindi/English translations
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 🎧 Audio Enlightenment
+- **Verse-by-verse Geeta audio** (BG 1.1, BG 2.3 etc.)
+- **Background playback** support
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 🔖 Spiritual Bookmarks
+- **Save favorite verses** across sessions
+
+## 🛠️ Technical Sadhana
+
+| Aspect              | Implementation Details |
+|---------------------|------------------------|
+| **Data Fetching**   | Http |
+| **Local Storage**   | `getApplicationDocumentsDirectory` + JSON |
+| **Audio Engine**    | just_audio + audio_service |
+| **State**           | Provider + ChangeNotifier |
+| **UI Framework**    | Flutter 3.19 (Material 3) |
+
